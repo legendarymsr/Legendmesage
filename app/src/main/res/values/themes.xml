@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.LegendMessage" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/tn_blue</item>
+        <item name="colorPrimaryDark">@color/tn_bg</item>
+        <item name="colorAccent">@color/tn_blue</item>
+        <item name="android:windowBackground">@color/tn_bg</item>
+        <item name="android:statusBarColor">@color/tn_bg</item>
+    </style>
+</resources>

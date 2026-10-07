@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LegendMessage</string>
+    <string name="tagline">End-to-end encrypted. Peer-to-peer over Tor.\nNo phone number. No email. No server.</string>
+    <string name="stage_label">Stage 0 · build skeleton</string>
+</resources>
