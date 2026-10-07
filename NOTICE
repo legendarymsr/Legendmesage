@@ -1,0 +1,27 @@
+LegendMessage
+Copyright (C) 2026 the LegendMessage authors
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See LICENSE.
+
+Third-party components
+----------------------
+
+* libsignal (org.signal:libsignal-android) — the Signal protocol implementation
+  (X3DH/PQXDH key agreement and the Double Ratchet). Licensed under the GNU
+  Affero General Public License v3.0 (AGPL-3.0). Because LegendMessage links
+  libsignal, distributing a combined binary places that combination under the
+  AGPL's terms for the libsignal portions. LegendMessage is peer-to-peer and
+  runs no server that offers the software to users over a network, so the AGPL's
+  remote-interaction clause (section 13) has nothing to attach to in normal use.
+  GPLv3 and AGPLv3 are mutually compatible by design (each license's section 13).
+
+* ZXing / zxing-android-embedded — QR code generation and scanning.
+  Apache License 2.0.
+
+* AndroidX libraries — Apache License 2.0.
+
+* Tor (via info.guardianproject:tor-android and jtorctl), added in Stage 3 —
+  Tor is BSD-3-Clause; jtorctl is BSD-3-Clause.
