@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tokyo Night palette, matching the author's other projects. -->
+    <color name="tn_bg">#1A1B26</color>
+    <color name="tn_fg">#C0CAF5</color>
+    <color name="tn_dim">#565F89</color>
+    <color name="tn_blue">#7AA2F7</color>
+    <color name="tn_green">#9ECE6A</color>
+</resources>
