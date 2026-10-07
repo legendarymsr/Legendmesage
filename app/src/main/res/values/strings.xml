@@ -3,4 +3,17 @@
     <string name="app_name">LegendMessage</string>
     <string name="tagline">End-to-end encrypted. Peer-to-peer over Tor.\nNo phone number. No email. No server.</string>
     <string name="stage_label">Stage 0 · build skeleton</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_blurb">Pick a name for yourself. It is only a local label — nothing is registered anywhere.</string>
+    <string name="onboarding_name_hint">Display name</string>
+    <string name="onboarding_name_required">Please enter a name</string>
+    <string name="onboarding_create">Create my identity</string>
+    <string name="onboarding_footnote">A cryptographic key will be generated and stored on this device only.</string>
+
+    <!-- Home -->
+    <string name="home_you_are">You are</string>
+    <string name="home_qr_desc">Your identity QR code</string>
+    <string name="home_qr_caption">Let a contact scan this to add you</string>
+    <string name="home_fingerprint_label">Your identity fingerprint</string>
 </resources>
