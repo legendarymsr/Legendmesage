@@ -47,4 +47,9 @@
     <string name="tor_status_error">Tor: error</string>
     <string name="tor_battery_title">Keep running in the background</string>
     <string name="tor_battery_body">To stay reachable, LegendMessage needs to be exempt from battery optimization. Open settings to allow it?</string>
+
+    <!-- Chat -->
+    <string name="chat_hint">Message</string>
+    <string name="chat_send">Send</string>
+    <string name="chat_sending">%1$s · sending…</string>
 </resources>

@@ -28,6 +28,12 @@ class SignalStore(
     private val identity: IdentityManager,
 ) : SignalProtocolStore {
 
+    // ---- raw passthrough for app-level blobs (e.g. stored pairing cards) ----
+
+    fun rawPut(name: String, value: ByteArray) = store.put(name, value)
+
+    fun rawGet(name: String): ByteArray? = store.get(name)
+
     // ---- IdentityKeyStore ----
 
     override fun getIdentityKeyPair(): IdentityKeyPair = identity.identityKeyPair()
