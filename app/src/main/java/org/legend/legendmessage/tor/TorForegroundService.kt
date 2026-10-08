@@ -80,6 +80,7 @@ class TorForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        runCatching { App.services().peerServer.stop() }
         runCatching { unbindService(connection) }
         runCatching { unregisterReceiver(statusReceiver) }
         io.shutdownNow()
@@ -121,6 +122,10 @@ class TorForegroundService : Service() {
                 services.identity.onionAddress = onion
                 TorState.update(status = TorState.Status.ON, onionAddress = onion, socksPort = socks)
                 updateNotification(getString(R.string.tor_notif_on))
+
+                // Online: start accepting inbound streams and flush the outbox.
+                services.peerServer.start()
+                services.sender.flush()
             }
         } catch (e: Exception) {
             TorState.update(status = TorState.Status.ERROR)

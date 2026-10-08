@@ -6,4 +6,6 @@
     <color name="tn_dim">#565F89</color>
     <color name="tn_blue">#7AA2F7</color>
     <color name="tn_green">#9ECE6A</color>
+    <color name="tn_surface">#24283B</color>
+    <color name="tn_bubble_out">#3B4261</color>
 </resources>

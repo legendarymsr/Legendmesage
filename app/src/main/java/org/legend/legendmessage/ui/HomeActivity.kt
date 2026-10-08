@@ -49,12 +49,11 @@ class HomeActivity : AppCompatActivity() {
         binding.nameText.text = App.services().identity.displayName
 
         adapter = ContactAdapter(emptyList()) { contact ->
-            // Stage 4 opens the chat here; for now confirm the secure session.
-            Toast.makeText(
-                this,
-                getString(R.string.home_session_ready, contact.displayName),
-                Toast.LENGTH_SHORT,
-            ).show()
+            startActivity(
+                Intent(this, ChatActivity::class.java)
+                    .putExtra(ChatActivity.EXTRA_PEER_HEX, contact.identityHex)
+                    .putExtra(ChatActivity.EXTRA_PEER_NAME, contact.displayName),
+            )
         }
         binding.contactsList.layoutManager = LinearLayoutManager(this)
         binding.contactsList.adapter = adapter

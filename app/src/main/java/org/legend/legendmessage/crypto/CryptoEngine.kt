@@ -76,31 +76,22 @@ class CryptoEngine(
         )
     }
 
+    /** Our own identity public key bytes, sent on the wire so a peer can pick the session. */
+    fun myIdentityKeyBytes(): ByteArray = identity.identityKey().serialize()
+
     /**
-     * Pair with a scanned card: run X3DH/PQXDH to establish a session and save
-     * the contact. Returns the created [Contact].
+     * Pair with a scanned card: save the contact and keep the card so we can
+     * build the session the first time we send. We deliberately do NOT run
+     * X3DH at scan time — if both peers initiated at pairing, they would derive
+     * two different sessions. Instead the first sender initiates and the other
+     * side establishes its session by receiving that first (PreKey) message.
      */
     fun addContact(card: ContactCard): Contact {
-        val identityKey = IdentityKey(card.identityKey, 0)
-        val address = addressFor(card.identityKey)
-
-        val bundle = PreKeyBundle(
-            card.registrationId,
-            localDeviceId,
-            PreKeyBundle.NULL_PRE_KEY_ID,
-            null,
-            card.signedPreKeyId,
-            ECPublicKey(card.signedPreKey),
-            card.signedPreKeySignature,
-            identityKey,
-            card.kyberPreKeyId,
-            KEMPublicKey(card.kyberPreKey),
-            card.kyberPreKeySignature,
-        )
-        SessionBuilder(store, address).process(bundle, UsePqRatchet.YES)
+        val hex = hexOf(card.identityKey)
+        store.rawPut("card_$hex", card.encode().toByteArray(Charsets.UTF_8))
 
         val contact = Contact(
-            identityHex = hexOf(card.identityKey),
+            identityHex = hex,
             displayName = card.displayName.ifBlank { "Unknown" },
             onionAddress = card.onionAddress,
             registrationId = card.registrationId,
@@ -113,8 +104,32 @@ class CryptoEngine(
     fun hasSession(identityHex: String): Boolean =
         store.containsSession(SignalProtocolAddress(identityHex, localDeviceId))
 
+    /** Establish a session from the stored card if we don't have one yet (as initiator). */
+    private fun ensureSession(identityHex: String) {
+        if (hasSession(identityHex)) return
+        val cardBytes = store.rawGet("card_$identityHex")
+            ?: throw IllegalStateException("no pairing card for $identityHex; re-pair to start a session")
+        val card = ContactCard.decode(String(cardBytes, Charsets.UTF_8))
+        val bundle = PreKeyBundle(
+            card.registrationId,
+            localDeviceId,
+            PreKeyBundle.NULL_PRE_KEY_ID,
+            null,
+            card.signedPreKeyId,
+            ECPublicKey(card.signedPreKey),
+            card.signedPreKeySignature,
+            IdentityKey(card.identityKey, 0),
+            card.kyberPreKeyId,
+            KEMPublicKey(card.kyberPreKey),
+            card.kyberPreKeySignature,
+        )
+        SessionBuilder(store, SignalProtocolAddress(identityHex, localDeviceId))
+            .process(bundle, UsePqRatchet.YES)
+    }
+
     /** Encrypt [plaintext] for a contact, returning the ciphertext type and bytes. */
     fun encrypt(identityHex: String, plaintext: ByteArray): EncryptedMessage {
+        ensureSession(identityHex)
         val address = SignalProtocolAddress(identityHex, localDeviceId)
         val message: CiphertextMessage = SessionCipher(store, address).encrypt(plaintext)
         return EncryptedMessage(message.type, message.serialize())
