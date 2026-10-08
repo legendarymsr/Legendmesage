@@ -23,6 +23,22 @@ android {
         }
     }
 
+    // Two apps from one codebase:
+    //  - standard : the messenger (launches MainActivity)
+    //  - debugkit : a separate, side-by-side "LegendMsg Debug" app whose
+    //               launcher is the Debug & test hub.
+    flavorDimensions += "mode"
+    productFlavors {
+        create("standard") {
+            dimension = "mode"
+        }
+        create("debugkit") {
+            dimension = "mode"
+            applicationIdSuffix = ".debugkit"
+            versionNameSuffix = "-debug"
+        }
+    }
+
     signingConfigs {
         // A throwaway key committed to the repo so sideloaded builds from here
         // are signed consistently and update over each other. It carries NO
