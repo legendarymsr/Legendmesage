@@ -3,6 +3,19 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application>
+        <!-- Debug-only screens; present only in the standalone debug app. -->
+        <activity
+            android:name=".ui.DebugActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.DiagnosticsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.SelfTestActivity"
+            android:exported="false" />
+
         <!-- Standalone debug app: launch straight into the Debug & test hub. -->
         <activity-alias
             android:name=".Launcher"
