@@ -62,18 +62,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".ui.DebugActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".ui.DiagnosticsActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".ui.SelfTestActivity"
-            android:exported="false" />
-
-        <activity
             android:name=".ui.CrashActivity"
             android:exported="false"
             android:process=":crash" />

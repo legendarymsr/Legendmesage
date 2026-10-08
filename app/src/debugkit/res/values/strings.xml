@@ -2,4 +2,31 @@
 <resources>
     <!-- Overrides app_name for the standalone debug build. -->
     <string name="app_name">LegendMsg Debug</string>
+
+    <!-- Debug hub -->
+    <string name="debug_open">Debug &amp; test tools</string>
+    <string name="debug_title">Debug &amp; test</string>
+    <string name="debug_selftest">Run two-device self-test</string>
+    <string name="debug_diagnostics">Live transport diagnostics</string>
+    <string name="debug_crash">View last crash</string>
+    <string name="debug_no_crash">No crash recorded. </string>
+    <string name="debug_copy">Copy</string>
+    <string name="debug_copied">Copied to clipboard</string>
+    <string name="debug_copy_onion">Copy my onion address</string>
+    <string name="debug_no_onion">No onion yet — wait for Tor to come online</string>
+    <string name="debug_restart_tor">Restart Tor</string>
+    <string name="debug_tor_restarting">Restarting Tor…</string>
+    <string name="debug_reset">Reset app (wipe everything)</string>
+    <string name="debug_reset_title">Reset app?</string>
+    <string name="debug_reset_body">This permanently deletes your identity, contacts, sessions, and message history, then restarts the app. This cannot be undone.</string>
+
+    <!-- Diagnostics -->
+    <string name="diag_open">Diagnostics</string>
+    <string name="diag_title">Diagnostics</string>
+    <string name="diag_retry">Retry delivery now</string>
+
+    <!-- Self-test -->
+    <string name="selftest_open">Run two-device self-test</string>
+    <string name="selftest_title">Two-device self-test</string>
+    <string name="selftest_run">Run test</string>
 </resources>
