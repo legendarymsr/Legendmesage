@@ -12,9 +12,13 @@ import java.security.MessageDigest
  * generated once on first run and wrapped in the Keystore; there is no server
  * registration and nothing that ties it to a real-world identifier.
  */
-class IdentityManager(context: Context, private val store: SecretStore) {
+class IdentityManager(
+    context: Context,
+    private val store: SecretStore,
+    prefsName: String = "identity",
+) {
 
-    private val prefs = context.getSharedPreferences("identity", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
 
     fun exists(): Boolean = store.contains(KEY_IDENTITY)
 

@@ -9,8 +9,8 @@ import java.io.File
  * prekeys, sessions): the volume is small — a handful of keys and sessions —
  * so files are plenty, and every byte on disk is wrapped by [KeystoreVault].
  */
-class SecretStore(context: Context) {
-    private val dir = File(context.filesDir, "secretstore").apply { mkdirs() }
+class SecretStore(context: Context, name: String = "secretstore") {
+    private val dir = File(context.filesDir, name).apply { mkdirs() }
 
     private fun fileFor(name: String) = File(dir, sanitize(name) + ".bin")
 

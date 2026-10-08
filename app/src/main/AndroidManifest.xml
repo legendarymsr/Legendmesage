@@ -58,6 +58,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.SelfTestActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.CrashActivity"
             android:exported="false"
             android:process=":crash" />
