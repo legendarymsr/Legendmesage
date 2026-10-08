@@ -47,6 +47,7 @@ class HomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.nameText.text = App.services().identity.displayName
+        binding.appVersion.text = getString(R.string.home_version, org.legend.legendmessage.BuildConfig.VERSION_NAME)
 
         adapter = ContactAdapter(emptyList()) { contact ->
             startActivity(

@@ -20,6 +20,7 @@
     <string name="home_add_contact">Add contact (scan)</string>
     <string name="home_empty">No contacts yet.\n\nTap “My code” to show your pairing QR, or “Add contact” to scan someone else’s.</string>
     <string name="home_session_ready">Secure session with %1$s is ready</string>
+    <string name="home_version">v%1$s</string>
 
     <!-- Contact row -->
     <string name="contact_no_route">no route yet (needs Tor)</string>

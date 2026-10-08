@@ -35,33 +35,53 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Set version
+        id: ver
+        run: echo "name=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: >
+          gradle assembleDebug --no-daemon --stacktrace
+          -PappVersionCode=${{ github.run_number }}
+          -PappVersionName=${{ steps.ver.outputs.name }}
 
       - name: Name the APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/legendmessage.apk
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/legendmessage-${{ steps.ver.outputs.name }}.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: legendmessage-apk
-          path: dist/legendmessage.apk
+          path: dist/legendmessage-${{ steps.ver.outputs.name }}.apk
           if-no-files-found: error
 
-      # On pushes to the default branch, publish a stable download link.
+      - name: Clear old release assets
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids=$(gh api "repos/${{ github.repository }}/releases/tags/latest" --jq '.assets[].id' 2>/dev/null || true)
+          for id in $ids; do
+            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$id" || true
+          done
+
+      # On pushes to the default branch, publish a download link.
       - name: Publish to the "latest" release
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2.0.8
         with:
           tag_name: latest
-          name: LegendMessage (latest build)
+          name: LegendMessage v${{ steps.ver.outputs.name }}
           body: |
-            Rolling debug build of LegendMessage from the latest commit on `main`.
+            LegendMessage **v${{ steps.ver.outputs.name }}** — built from the latest commit on `main`.
 
-            Download **legendmessage.apk** below and sideload it (arm64 devices).
-            Signed with the repo's throwaway key, so builds update over each other.
-            This is a build-verified, unaudited personal-use app — see the README.
-          files: dist/legendmessage.apk
+            Download the `legendmessage-${{ steps.ver.outputs.name }}.apk` below and sideload it
+            (arm64 devices). Each build has a new version number and filename, so it
+            installs as a real update (same signing key). After installing, the home
+            screen shows this version — check it matches to confirm the update took.
+
+            Build-verified, unaudited personal-use app — see the README.
+          files: dist/legendmessage-${{ steps.ver.outputs.name }}.apk
           make_latest: true
