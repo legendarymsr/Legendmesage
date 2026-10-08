@@ -53,6 +53,11 @@
             android:name=".ui.SettingsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.CrashActivity"
+            android:exported="false"
+            android:process=":crash" />
+
         <service
             android:name=".tor.TorForegroundService"
             android:exported="false"
