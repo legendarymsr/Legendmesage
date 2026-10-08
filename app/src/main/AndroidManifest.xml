@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Camera: scanning a contact's pairing QR. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <application
         android:name=".app.App"
         android:allowBackup="false"
@@ -25,6 +31,10 @@
 
         <activity
             android:name=".ui.HomeActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.MyCodeActivity"
             android:exported="false" />
     </application>
 

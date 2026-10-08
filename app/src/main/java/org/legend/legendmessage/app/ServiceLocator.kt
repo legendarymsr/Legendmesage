@@ -1,8 +1,11 @@
 package org.legend.legendmessage.app
 
 import android.content.Context
+import org.legend.legendmessage.crypto.CryptoEngine
 import org.legend.legendmessage.crypto.IdentityManager
 import org.legend.legendmessage.crypto.SecretStore
+import org.legend.legendmessage.crypto.SignalStore
+import org.legend.legendmessage.data.ContactStore
 
 /**
  * Dead-simple manual dependency wiring. One instance per process, created by
@@ -12,4 +15,7 @@ class ServiceLocator(context: Context) {
     val appContext: Context = context.applicationContext
     val secretStore: SecretStore by lazy { SecretStore(appContext) }
     val identity: IdentityManager by lazy { IdentityManager(appContext, secretStore) }
+    val contacts: ContactStore by lazy { ContactStore(secretStore) }
+    val signalStore: SignalStore by lazy { SignalStore(secretStore, identity) }
+    val crypto: CryptoEngine by lazy { CryptoEngine(identity, signalStore, contacts) }
 }

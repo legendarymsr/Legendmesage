@@ -27,9 +27,10 @@ class OnboardingActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             binding.createButton.isEnabled = false
-            val identity = App.services().identity
-            if (!identity.exists()) {
-                identity.create(name)
+            val services = App.services()
+            if (!services.identity.exists()) {
+                services.identity.create(name)
+                services.crypto.ensurePreKeys()
             }
             startActivity(Intent(this, HomeActivity::class.java))
             finish()

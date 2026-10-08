@@ -16,4 +16,23 @@
     <string name="home_qr_desc">Your identity QR code</string>
     <string name="home_qr_caption">Let a contact scan this to add you</string>
     <string name="home_fingerprint_label">Your identity fingerprint</string>
+    <string name="home_my_code">My code</string>
+    <string name="home_add_contact">Add contact (scan)</string>
+    <string name="home_empty">No contacts yet.\n\nTap “My code” to show your pairing QR, or “Add contact” to scan someone else’s.</string>
+    <string name="home_session_ready">Secure session with %1$s is ready</string>
+
+    <!-- Contact row -->
+    <string name="contact_no_route">no route yet (needs Tor)</string>
+
+    <!-- Scanning / pairing -->
+    <string name="scan_prompt">Scan a LegendMessage code</string>
+    <string name="scan_not_a_card">That QR is not a LegendMessage contact code</string>
+    <string name="pair_ok_title">Contact added</string>
+    <string name="pair_ok_body">A secure, end-to-end encrypted session with %1$s is established.</string>
+    <string name="pair_failed">Could not pair: %1$s</string>
+
+    <!-- My code -->
+    <string name="mycode_title">Your pairing code</string>
+    <string name="mycode_qr_desc">Your contact pairing QR code</string>
+    <string name="mycode_no_onion">Tor route not published yet (Stage 3)</string>
 </resources>
