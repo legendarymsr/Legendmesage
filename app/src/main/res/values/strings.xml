@@ -28,7 +28,7 @@
     <string name="scan_prompt">Scan a LegendMessage code</string>
     <string name="scan_not_a_card">That QR is not a LegendMessage contact code</string>
     <string name="pair_ok_title">Contact added</string>
-    <string name="pair_ok_body">A secure, end-to-end encrypted session with %1$s is established.</string>
+    <string name="pair_ok_body">%1$s was added. Your messages will be end-to-end encrypted. For both of you to message each other, they need to add you too.</string>
     <string name="pair_failed">Could not pair: %1$s</string>
 
     <!-- My code -->
@@ -52,4 +52,24 @@
     <string name="chat_hint">Message</string>
     <string name="chat_send">Send</string>
     <string name="chat_sending">%1$s · sending…</string>
+    <string name="chat_title_verify">%1$s  ·  tap to verify</string>
+    <string name="chat_safety_title">Safety number with %1$s</string>
+    <string name="chat_safety_body">%1$s\n\nCompare these digits with your contact in person or over another trusted channel. If they match on both devices, no one is intercepting your conversation.</string>
+    <string name="chat_safety_unavailable">Not available yet — pair with this contact first.</string>
+
+    <!-- Home extra -->
+    <string name="home_settings">Settings</string>
+
+    <!-- Settings / backup -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_backup_blurb">Back up your identity and contacts to an encrypted file, so you can restore them on another device. Your message history is not included.</string>
+    <string name="settings_export">Export encrypted backup</string>
+    <string name="settings_import">Restore from backup</string>
+    <string name="settings_footnote">The backup is encrypted with the passphrase you choose. If you lose the passphrase, the backup cannot be recovered.</string>
+    <string name="settings_passphrase_hint">Backup passphrase</string>
+    <string name="settings_passphrase_body">This passphrase encrypts (or decrypts) the backup file. Choose something strong you will remember.</string>
+    <string name="settings_passphrase_short">Use at least 6 characters</string>
+    <string name="settings_export_ok">Backup saved.</string>
+    <string name="settings_import_ok">Identity restored. Please restart the app.</string>
+    <string name="settings_failed">Failed: %1$s</string>
 </resources>

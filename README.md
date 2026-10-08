@@ -4,10 +4,13 @@ A private messenger for Android. **End-to-end encrypted with the Signal
 protocol, peer-to-peer over Tor onion services. No phone number, no email, no
 account server — your identity is a cryptographic keypair and nothing else.**
 
-> **Status: Stage 0 — build skeleton.** The app currently builds, installs, and
-> shows a placeholder screen. The cryptography, pairing, Tor transport, and
-> messaging are being added in stages (see the roadmap below). **Do not rely on
-> this for anything sensitive yet.**
+> **Status: feature-complete through Stage 5 (building green).** Identity,
+> QR pairing, embedded Tor + onion services, messaging over Tor with encrypted
+> history and an offline queue, safety-number verification, and encrypted
+> backup/restore are all implemented. The code is verified to **compile and
+> package into an installable APK**; it has **not** been through on-device
+> interop testing or a security audit, so **do not rely on it for anything
+> sensitive yet** (see "Honest limitations").
 
 ---
 
@@ -67,21 +70,43 @@ about the trade-offs of the pure-P2P-over-Tor model:
 | Background | Foreground service + battery exemption | Keep the onion service reachable |
 | Storage | SQLCipher DB + Android Keystore-wrapped keys | Encrypted at rest |
 
+## How it works, end to end
+
+1. **First run** generates a Curve25519 identity key (no PII, no registration),
+   wrapped by the Android Keystore. You pick a display name — a local label only.
+2. **Tor comes up** in a foreground service and publishes your onion v3 service
+   (key persisted, so the address is stable). Your onion forwards to a local
+   port where the app listens.
+3. **Pairing:** you show your QR (identity + signed prekey + Kyber prekey +
+   onion address); your contact scans it, and you scan theirs. Each scan saves
+   the other's card — no server, no directory.
+4. **Sending:** the first message you send runs X3DH + PQXDH against the stored
+   card to open a Double Ratchet session, encrypts, and dials the peer's onion
+   over Tor's SOCKS proxy. The ciphertext is stored and marked pending until
+   delivered; if the peer is offline it stays queued and retries.
+5. **Receiving:** the peer server reads the envelope, picks the session by the
+   sender's identity key, decrypts, and stores the plaintext in the SQLCipher DB.
+6. **Verify:** tap a conversation's title to see the pair's safety number and
+   compare it out of band — that rules out a machine-in-the-middle.
+7. **Backup:** Settings exports your identity + contacts as a passphrase-
+   encrypted file you can restore on another device.
+
 ## Roadmap
 
-- [x] **Stage 0 — build skeleton.** Kotlin project, Gradle, CI that produces an
-      installable debug APK. *(you are here)*
-- [ ] **Stage 1 — identity.** Generate the Curve25519 identity key on first run;
-      store it under the Android Keystore; show the safety-number fingerprint and
-      a QR of the public identity.
-- [ ] **Stage 2 — pairing + sessions.** Scan a contact's QR, run X3DH, establish
-      a Double Ratchet session (crypto only, no network yet).
-- [ ] **Stage 3 — Tor transport.** Embed Tor, publish a per-device onion service,
-      run it from a foreground service, dial a peer's onion.
-- [ ] **Stage 4 — messaging.** Send/receive ratcheted messages over Tor, with an
-      encrypted local history and an offline send queue.
-- [ ] **Stage 5 — polish.** Mailbox for async delivery, backup/restore of
-      identity, UX, verification flows.
+- [x] **Stage 0 — build skeleton.** Kotlin project, Gradle, CI producing an APK.
+- [x] **Stage 1 — identity.** Curve25519 identity on first run, Keystore-wrapped,
+      with fingerprint + identity QR.
+- [x] **Stage 2 — pairing + sessions.** Full prekey bundle (incl. Kyber), QR
+      pairing, X3DH/PQXDH session establishment, contacts.
+- [x] **Stage 3 — Tor transport.** Embedded Tor, per-device onion service from a
+      foreground service, SOCKS dialing.
+- [x] **Stage 4 — messaging.** Ratcheted messages over Tor, SQLCipher history,
+      offline send queue.
+- [x] **Stage 5 — polish.** Safety-number verification, encrypted backup/restore,
+      outbox retry, UX.
+- [ ] **Future.** A store-and-forward *mailbox* for fully asynchronous delivery
+      (today both peers must be online at the same time), group messaging,
+      multi-device, and an independent security review.
 
 ## Building
 

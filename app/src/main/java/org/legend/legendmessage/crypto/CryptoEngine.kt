@@ -149,6 +149,33 @@ class CryptoEngine(
     private fun addressFor(identityKey: ByteArray) =
         SignalProtocolAddress(hexOf(identityKey), localDeviceId)
 
+    /** The peer's identity public key, from the pinned session or the stored card. */
+    fun peerIdentityKey(identityHex: String): ByteArray? {
+        store.getIdentity(SignalProtocolAddress(identityHex, localDeviceId))?.let { return it.serialize() }
+        val cardBytes = store.rawGet("card_$identityHex") ?: return null
+        return ContactCard.decode(String(cardBytes, Charsets.UTF_8)).identityKey
+    }
+
+    /**
+     * A symmetric safety number for a pair: both parties compute the same digits
+     * from the two identity keys, so reading them aloud confirms there is no
+     * machine-in-the-middle. (Order-independent by sorting the two keys.)
+     */
+    fun safetyNumber(identityHex: String): String? {
+        val mine = identity.identityKey().serialize()
+        val theirs = peerIdentityKey(identityHex) ?: return null
+        val ordered = listOf(mine, theirs).sortedBy { hexOf(it) }
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(ordered[0] + ordered[1])
+        val groups = (0 until 10).map { i ->
+            val chunk = ((digest[i * 3].toInt() and 0xFF) shl 16) or
+                ((digest[i * 3 + 1].toInt() and 0xFF) shl 8) or
+                (digest[i * 3 + 2].toInt() and 0xFF)
+            "%05d".format(chunk % 100000)
+        }
+        return groups.joinToString(" ")
+    }
+
     companion object {
         fun hexOf(bytes: ByteArray): String =
             bytes.joinToString("") { "%02x".format(it) }

@@ -61,6 +61,9 @@ class HomeActivity : AppCompatActivity() {
         binding.myCodeButton.setOnClickListener {
             startActivity(Intent(this, MyCodeActivity::class.java))
         }
+        binding.settingsButton.setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         binding.addButton.setOnClickListener {
             scanLauncher.launch(
                 ScanOptions()
@@ -77,6 +80,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
         refresh()
         TorState.addListener(torListener)
+        App.services().sender.flush()
     }
 
     override fun onPause() {
