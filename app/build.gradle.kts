@@ -11,8 +11,10 @@ android {
         applicationId = "org.legend.legendmessage"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI passes -PappVersionCode / -PappVersionName so every published build
+        // has a higher, visible version (and installs as a real update).
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 1
+        versionName = (project.findProperty("appVersionName") as String?) ?: "0.1.0-dev"
 
         // libsignal and (later) Tor ship native libraries for every ABI, which
         // balloons the APK. Restrict to arm64, which every modern phone uses.
@@ -60,6 +62,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     packaging {

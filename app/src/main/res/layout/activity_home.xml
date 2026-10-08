@@ -42,6 +42,13 @@
                 android:text="@string/tor_status_off"
                 android:textColor="@color/tn_dim"
                 android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/appVersion"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/tn_dim"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <Button
