@@ -31,6 +31,13 @@ class IdentityManager(context: Context, private val store: SecretStore) {
             prefs.edit().putString(PREF_NAME, value).apply()
         }
 
+    /** This device's Tor onion address, once published (Stage 3). Empty until then. */
+    var onionAddress: String
+        get() = prefs.getString(PREF_ONION, "") ?: ""
+        set(value) {
+            prefs.edit().putString(PREF_ONION, value).apply()
+        }
+
     /** Generate and persist a fresh identity. Safe to call only when [exists] is false. */
     fun create(displayName: String): IdentityKeyPair {
         val keyPair = IdentityKeyPair.generate()
@@ -57,6 +64,7 @@ class IdentityManager(context: Context, private val store: SecretStore) {
         private const val KEY_IDENTITY = "identity_keypair"
         private const val PREF_REG_ID = "registration_id"
         private const val PREF_NAME = "display_name"
+        private const val PREF_ONION = "onion_address"
 
         fun fingerprintOf(identityKey: IdentityKey): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(identityKey.serialize())
