@@ -7,6 +7,13 @@
         android:name="android.hardware.camera"
         android:required="false" />
 
+    <!-- Networking + the persistent Tor foreground service. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <application
         android:name=".app.App"
         android:allowBackup="false"
@@ -36,6 +43,15 @@
         <activity
             android:name=".ui.MyCodeActivity"
             android:exported="false" />
+
+        <service
+            android:name=".tor.TorForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Runs the Tor client and onion service that carry end-to-end encrypted peer-to-peer messages" />
+        </service>
     </application>
 
 </manifest>

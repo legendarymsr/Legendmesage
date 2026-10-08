@@ -1,10 +1,18 @@
 package org.legend.legendmessage.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
@@ -12,6 +20,8 @@ import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
 import org.legend.legendmessage.databinding.ActivityHomeBinding
 import org.legend.legendmessage.pairing.ContactCard
+import org.legend.legendmessage.tor.TorForegroundService
+import org.legend.legendmessage.tor.TorState
 
 /**
  * Home: your contacts, plus entry points to show your own pairing code and to
@@ -25,6 +35,11 @@ class HomeActivity : AppCompatActivity() {
         val contents = result.contents
         if (contents != null) handleScanned(contents)
     }
+
+    private val notifPermLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { startTor() }
+
+    private val torListener: () -> Unit = { renderTorStatus() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,11 +70,69 @@ class HomeActivity : AppCompatActivity() {
                     .setOrientationLocked(false),
             )
         }
+
+        ensureTorRunning()
     }
 
     override fun onResume() {
         super.onResume()
         refresh()
+        TorState.addListener(torListener)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        TorState.removeListener(torListener)
+    }
+
+    /** Start Tor if it isn't up yet, after securing the notification permission. */
+    private fun ensureTorRunning() {
+        if (TorState.status == TorState.Status.ON || TorState.status == TorState.Status.STARTING) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            startTor()
+        }
+    }
+
+    private fun startTor() {
+        TorForegroundService.start(this)
+        maybeAskBatteryExemption()
+    }
+
+    private fun maybeAskBatteryExemption() {
+        val pm = getSystemService(PowerManager::class.java)
+        if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.tor_battery_title)
+                .setMessage(R.string.tor_battery_body)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    runCatching {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                Uri.parse("package:$packageName"),
+                            ),
+                        )
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun renderTorStatus() {
+        binding.torStatus.text = when (TorState.status) {
+            TorState.Status.OFF -> getString(R.string.tor_status_off)
+            TorState.Status.STARTING -> getString(R.string.tor_status_starting)
+            TorState.Status.ON -> getString(R.string.tor_status_on, TorState.onionAddress.take(16) + "…")
+            TorState.Status.ERROR -> getString(R.string.tor_status_error)
+        }
     }
 
     private fun refresh() {

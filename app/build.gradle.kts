@@ -67,4 +67,8 @@ dependencies {
 
     // QR generation + scanning for contact pairing.
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+
+    // Tor: embedded daemon + onion services (transport). BSD-3-Clause.
+    implementation("info.guardianproject:tor-android:0.4.7.14")
+    implementation("info.guardianproject:jtorctl:0.4.5.7")
 }
