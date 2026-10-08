@@ -34,5 +34,17 @@
     <!-- My code -->
     <string name="mycode_title">Your pairing code</string>
     <string name="mycode_qr_desc">Your contact pairing QR code</string>
-    <string name="mycode_no_onion">Tor route not published yet (Stage 3)</string>
+    <string name="mycode_no_onion">Tor route not published yet — start Tor on the home screen</string>
+
+    <!-- Tor -->
+    <string name="tor_notif_channel">Tor connection</string>
+    <string name="tor_notif_starting">Connecting to the Tor network…</string>
+    <string name="tor_notif_on">Online over Tor</string>
+    <string name="tor_notif_error">Tor error: %1$s</string>
+    <string name="tor_status_off">Tor: off</string>
+    <string name="tor_status_starting">Tor: connecting…</string>
+    <string name="tor_status_on">Tor: online · %1$s</string>
+    <string name="tor_status_error">Tor: error</string>
+    <string name="tor_battery_title">Keep running in the background</string>
+    <string name="tor_battery_body">To stay reachable, LegendMessage needs to be exempt from battery optimization. Open settings to allow it?</string>
 </resources>
