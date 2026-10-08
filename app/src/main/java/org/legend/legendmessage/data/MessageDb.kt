@@ -10,13 +10,21 @@ import java.security.SecureRandom
  * generated once, and itself wrapped by the Android Keystore via [SecretStore]
  * — so the on-disk database is encrypted and its key never lives in plaintext.
  */
-class MessageDb(private val context: Context, private val secretStore: SecretStore) {
+class MessageDb(
+    private val context: Context,
+    private val secretStore: SecretStore,
+    private val dbName: String = "messages.db",
+) {
 
     val database: SQLiteDatabase by lazy { open() }
 
+    fun close() {
+        runCatching { database.close() }
+    }
+
     private fun open(): SQLiteDatabase {
         runCatching { System.loadLibrary("sqlcipher") }
-        val file = context.getDatabasePath("messages.db")
+        val file = context.getDatabasePath(dbName)
         file.parentFile?.mkdirs()
         val db = SQLiteDatabase.openOrCreateDatabase(file, passphrase(), null, null)
         db.execSQL(

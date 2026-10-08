@@ -31,6 +31,13 @@
         android:text="@string/diag_open" />
 
     <Button
+        android:id="@+id/selfTestButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/selftest_open" />
+
+    <Button
         android:id="@+id/exportButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

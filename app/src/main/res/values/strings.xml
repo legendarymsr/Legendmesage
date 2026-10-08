@@ -79,6 +79,11 @@
     <string name="diag_title">Diagnostics</string>
     <string name="diag_retry">Retry delivery now</string>
 
+    <!-- Self-test -->
+    <string name="selftest_open">Run two-device self-test</string>
+    <string name="selftest_title">Two-device self-test</string>
+    <string name="selftest_run">Run test</string>
+
     <!-- Mailbox -->
     <string name="mailbox_title">Mailbox (offline delivery)</string>
     <string name="mailbox_blurb">Without a mailbox, you and a contact must be online at the same time. A mailbox is another always-on device running this app in mailbox mode; it holds encrypted messages for you until you pick them up. It only ever sees ciphertext.</string>

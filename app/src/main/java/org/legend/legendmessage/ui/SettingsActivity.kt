@@ -39,6 +39,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.diagnosticsButton.setOnClickListener {
             startActivity(android.content.Intent(this, DiagnosticsActivity::class.java))
         }
+        binding.selfTestButton.setOnClickListener {
+            startActivity(android.content.Intent(this, SelfTestActivity::class.java))
+        }
         binding.exportButton.setOnClickListener { createDoc.launch("legendmessage-backup.lmbk") }
         binding.importButton.setOnClickListener { openDoc.launch(arrayOf("*/*")) }
 
