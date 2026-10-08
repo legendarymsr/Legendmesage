@@ -24,18 +24,11 @@
         android:textSize="14sp" />
 
     <Button
-        android:id="@+id/diagnosticsButton"
+        android:id="@+id/debugButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:text="@string/diag_open" />
-
-    <Button
-        android:id="@+id/selfTestButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/selftest_open" />
+        android:text="@string/debug_open" />
 
     <Button
         android:id="@+id/exportButton"

@@ -54,6 +54,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.DebugActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.DiagnosticsActivity"
             android:exported="false" />
 
