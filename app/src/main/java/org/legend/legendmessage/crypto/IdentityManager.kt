@@ -49,6 +49,15 @@ class IdentityManager(context: Context, private val store: SecretStore) {
         return keyPair
     }
 
+    /** Restore identity preferences from a backup. */
+    fun importPrefs(registrationId: Int, displayName: String, onionAddress: String) {
+        prefs.edit()
+            .putInt(PREF_REG_ID, registrationId)
+            .putString(PREF_NAME, displayName)
+            .putString(PREF_ONION, onionAddress)
+            .apply()
+    }
+
     /** The public half of the identity, used in contact cards and fingerprints. */
     fun identityKey(): IdentityKey = identityKeyPair().publicKey
 

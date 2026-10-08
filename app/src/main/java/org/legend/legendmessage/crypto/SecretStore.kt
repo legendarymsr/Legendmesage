@@ -41,4 +41,8 @@ class SecretStore(context: Context) {
         (dir.listFiles() ?: emptyArray())
             .map { it.name.removeSuffix(".bin") }
             .filter { it.startsWith(sanitize(prefix)) }
+
+    /** All stored entry names (used by backup). */
+    fun allKeys(): List<String> =
+        (dir.listFiles() ?: emptyArray()).map { it.name.removeSuffix(".bin") }
 }
