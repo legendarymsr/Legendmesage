@@ -72,4 +72,15 @@
     <string name="settings_export_ok">Backup saved.</string>
     <string name="settings_import_ok">Identity restored. Please restart the app.</string>
     <string name="settings_failed">Failed: %1$s</string>
+
+    <!-- Mailbox -->
+    <string name="mailbox_title">Mailbox (offline delivery)</string>
+    <string name="mailbox_blurb">Without a mailbox, you and a contact must be online at the same time. A mailbox is another always-on device running this app in mailbox mode; it holds encrypted messages for you until you pick them up. It only ever sees ciphertext.</string>
+    <string name="mailbox_my_address_label">Your mailbox address (where your messages wait for you)</string>
+    <string name="mailbox_my_address_hint">abcd…xyz.onion</string>
+    <string name="mailbox_save">Save mailbox</string>
+    <string name="mailbox_saved">Mailbox saved. Share your code again so contacts pick up the change.</string>
+    <string name="mailbox_mode_label">Run this device as a mailbox for my contacts</string>
+    <string name="mailbox_this_device_label">This device\'s address (use it as a mailbox on your other device):</string>
+    <string name="mailbox_this_device_pending">Not available yet — wait for Tor to come online.</string>
 </resources>

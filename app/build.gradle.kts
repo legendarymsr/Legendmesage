@@ -21,9 +21,25 @@ android {
         }
     }
 
+    signingConfigs {
+        // A throwaway key committed to the repo so sideloaded builds from here
+        // are signed consistently and update over each other. It carries NO
+        // trust — do not treat a signature by this key as proof of anything.
+        create("shared") {
+            storeFile = rootProject.file("keystore/legendmessage.jks")
+            storePassword = "legendmessage"
+            keyAlias = "legendmessage"
+            keyPassword = "legendmessage"
+        }
+    }
+
     buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         getByName("release") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -23,6 +23,8 @@ import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
 import org.torproject.jni.TorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 
 /**
  * The always-on piece. A persistent foreground service that runs an embedded
@@ -37,6 +39,8 @@ import java.util.concurrent.Executors
 class TorForegroundService : Service() {
 
     private val io = Executors.newSingleThreadExecutor()
+    private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    @Volatile private var polling = false
     private var torService: TorService? = null
 
     private val connection = object : ServiceConnection {
@@ -84,6 +88,7 @@ class TorForegroundService : Service() {
         runCatching { unbindService(connection) }
         runCatching { unregisterReceiver(statusReceiver) }
         io.shutdownNow()
+        scheduler.shutdownNow()
         TorState.update(status = TorState.Status.OFF)
         super.onDestroy()
     }
@@ -123,9 +128,20 @@ class TorForegroundService : Service() {
                 TorState.update(status = TorState.Status.ON, onionAddress = onion, socksPort = socks)
                 updateNotification(getString(R.string.tor_notif_on))
 
-                // Online: start accepting inbound streams and flush the outbox.
+                // Online: accept inbound streams, flush the outbox, collect mail,
+                // and keep polling the mailbox + retrying the outbox periodically.
                 services.peerServer.start()
                 services.sender.flush()
+                services.mailboxPoller.poll()
+                if (!polling) {
+                    polling = true
+                    scheduler.scheduleWithFixedDelay({
+                        if (TorState.status == TorState.Status.ON) {
+                            App.services().sender.flush()
+                            App.services().mailboxPoller.poll()
+                        }
+                    }, POLL_SECONDS, POLL_SECONDS, TimeUnit.SECONDS)
+                }
             }
         } catch (e: Exception) {
             TorState.update(status = TorState.Status.ERROR)
@@ -182,6 +198,7 @@ class TorForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "legendmessage.tor"
         private const val NOTIF_ID = 1001
+        private const val POLL_SECONDS = 120L
 
         fun start(context: Context) {
             val intent = Intent(context, TorForegroundService::class.java)

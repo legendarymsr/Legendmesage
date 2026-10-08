@@ -23,6 +23,7 @@ data class ContactCard(
     val kyberPreKey: ByteArray,
     val kyberPreKeySignature: ByteArray,
     val onionAddress: String,
+    val mailboxAddress: String,
 ) {
     fun encode(): String {
         val body = CardWriter()
@@ -37,13 +38,14 @@ data class ContactCard(
             .putBytes(kyberPreKey)
             .putBytes(kyberPreKeySignature)
             .putString(onionAddress)
+            .putString(mailboxAddress)
             .toByteArray()
         return PREFIX + B64.encode(body)
     }
 
     companion object {
-        const val PREFIX = "LMC1:"
-        private const val VERSION = 1
+        const val PREFIX = "LMC2:"
+        private const val VERSION = 2
 
         fun looksLikeCard(text: String) = text.startsWith(PREFIX)
 
@@ -63,6 +65,7 @@ data class ContactCard(
                 kyberPreKey = r.readBytes(),
                 kyberPreKeySignature = r.readBytes(),
                 onionAddress = r.readString(),
+                mailboxAddress = r.readString(),
             )
         }
     }
@@ -80,7 +83,8 @@ data class ContactCard(
             kyberPreKeyId == other.kyberPreKeyId &&
             kyberPreKey.contentEquals(other.kyberPreKey) &&
             kyberPreKeySignature.contentEquals(other.kyberPreKeySignature) &&
-            onionAddress == other.onionAddress
+            onionAddress == other.onionAddress &&
+            mailboxAddress == other.mailboxAddress
     }
 
     override fun hashCode(): Int {

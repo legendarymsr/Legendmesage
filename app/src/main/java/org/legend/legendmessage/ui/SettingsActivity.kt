@@ -38,6 +38,20 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.exportButton.setOnClickListener { createDoc.launch("legendmessage-backup.lmbk") }
         binding.importButton.setOnClickListener { openDoc.launch(arrayOf("*/*")) }
+
+        val identity = App.services().identity
+        binding.mailboxAddressInput.setText(identity.mailboxAddress)
+        binding.mailboxModeCheck.isChecked = identity.mailboxEnabled
+        binding.mailboxThisDevice.text =
+            identity.onionAddress.ifBlank { getString(R.string.mailbox_this_device_pending) }
+
+        binding.mailboxSaveButton.setOnClickListener {
+            identity.mailboxAddress = binding.mailboxAddressInput.text?.toString()?.trim().orEmpty()
+            toast(getString(R.string.mailbox_saved))
+        }
+        binding.mailboxModeCheck.setOnCheckedChangeListener { _, checked ->
+            identity.mailboxEnabled = checked
+        }
     }
 
     private fun askPassphrase(exporting: Boolean, onEntered: (CharArray) -> Unit) {

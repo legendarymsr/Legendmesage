@@ -104,14 +104,44 @@ about the trade-offs of the pure-P2P-over-Tor model:
       offline send queue.
 - [x] **Stage 5 — polish.** Safety-number verification, encrypted backup/restore,
       outbox retry, UX.
-- [ ] **Future.** A store-and-forward *mailbox* for fully asynchronous delivery
-      (today both peers must be online at the same time), group messaging,
-      multi-device, and an independent security review.
+- [x] **Mailbox — async delivery.** An optional store-and-forward mailbox so you
+      can message a contact who is offline (see below).
+- [ ] **Future.** Group messaging, multi-device, and an independent security
+      review.
+
+## Mailbox (offline delivery)
+
+By default a message is delivered only while both devices are online. To relax
+that, LegendMessage supports a **mailbox**: another always-on device running
+this same app in *mailbox mode* that holds encrypted messages for you until you
+collect them.
+
+- In **Settings**, enable *"Run this device as a mailbox"* on a spare/always-on
+  device and copy its onion address; on your main device, paste that as *your
+  mailbox address*. Your contact card then advertises it.
+- When a sender can't reach you directly, they **deposit** the (still-encrypted)
+  message at your mailbox. Your device **collects** it when it next comes online,
+  proving ownership of your identity by signing the mailbox's challenge — so only
+  you can retrieve your mail.
+- The mailbox only ever sees ciphertext and routing metadata (who has mail
+  waiting), never message contents. Running your own on a device you control
+  keeps even that metadata off third parties.
+
+## Download
+
+Every push to `main` publishes a ready-to-sideload build here:
+
+**→ https://github.com/legendarymsr/Legendmesage/releases/latest** (grab
+`legendmessage.apk`).
+
+It's an arm64 debug build signed with the repo's throwaway key, so each new
+version installs over the previous one without uninstalling. Enable "install
+unknown apps" for your browser/file manager, open the APK, and install.
 
 ## Building
 
-CI builds a debug APK on every push (see `.github/workflows/build.yml`) and
-uploads it as the `legendmessage-debug-apk` artifact.
+CI builds the APK on every push (see `.github/workflows/build.yml`), uploads it
+as the `legendmessage-apk` artifact, and attaches it to the `latest` release.
 
 Locally you need a JDK 17 and the Android SDK (platform 34, build-tools 34.0.0).
 This repo does not commit the Gradle wrapper yet; generate it once, then build:
