@@ -87,6 +87,8 @@ dependencies {
     // Tor: embedded daemon + onion services (transport). BSD-3-Clause.
     implementation("info.guardianproject:tor-android:0.4.7.14")
     implementation("info.guardianproject:jtorctl:0.4.5.7")
+    // TorService uses LocalBroadcastManager but the AAR doesn't pull it in.
+    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
 
     // Encrypted message history at rest.
     implementation("net.zetetic:sqlcipher-android:4.9.0")
