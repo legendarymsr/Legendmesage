@@ -45,16 +45,17 @@ jobs:
           -PappVersionCode=${{ github.run_number }}
           -PappVersionName=${{ steps.ver.outputs.name }}
 
-      - name: Name the APK
+      - name: Name the APKs
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/legendmessage-${{ steps.ver.outputs.name }}.apk"
+          cp app/build/outputs/apk/standard/debug/app-standard-debug.apk "dist/legendmessage-${{ steps.ver.outputs.name }}.apk"
+          cp app/build/outputs/apk/debugkit/debug/app-debugkit-debug.apk "dist/legendmsg-debug-${{ steps.ver.outputs.name }}.apk"
 
-      - name: Upload APK artifact
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: legendmessage-apk
-          path: dist/legendmessage-${{ steps.ver.outputs.name }}.apk
+          name: legendmessage-apks
+          path: dist/*.apk
           if-no-files-found: error
 
       - name: Clear old release assets
@@ -77,11 +78,14 @@ jobs:
           body: |
             LegendMessage **v${{ steps.ver.outputs.name }}** — built from the latest commit on `main`.
 
-            Download the `legendmessage-${{ steps.ver.outputs.name }}.apk` below and sideload it
-            (arm64 devices). Each build has a new version number and filename, so it
-            installs as a real update (same signing key). After installing, the home
-            screen shows this version — check it matches to confirm the update took.
+            Two arm64 APKs (same signing key, each a real update over the previous):
+            - **legendmessage-${{ steps.ver.outputs.name }}.apk** — the messenger.
+            - **legendmsg-debug-${{ steps.ver.outputs.name }}.apk** — a separate
+              standalone "LegendMsg Debug" app that installs side by side and opens
+              straight into the self-test / diagnostics tools.
 
             Build-verified, unaudited personal-use app — see the README.
-          files: dist/legendmessage-${{ steps.ver.outputs.name }}.apk
+          files: |
+            dist/legendmessage-${{ steps.ver.outputs.name }}.apk
+            dist/legendmsg-debug-${{ steps.ver.outputs.name }}.apk
           make_latest: true

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Camera: scanning a contact's pairing QR. -->
     <uses-permission android:name="android.permission.CAMERA" />
@@ -25,12 +26,19 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="false" />
+
+        <!-- The launcher. The debugkit flavor overrides targetActivity so the
+             standalone debug app opens the Debug hub instead. -->
+        <activity-alias
+            android:name=".Launcher"
+            android:exported="true"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
 
         <activity
             android:name=".ui.OnboardingActivity"
