@@ -73,6 +73,7 @@ class HomeActivity : AppCompatActivity() {
                     .setOrientationLocked(false),
             )
         }
+        binding.pasteButton.setOnClickListener { pasteInvite() }
 
         ensureTorRunning()
     }
@@ -146,12 +147,17 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun handleScanned(text: String) {
-        if (!ContactCard.looksLikeCard(text)) {
+        val card = try {
+            decodeCard(text)
+        } catch (e: Exception) {
+            Toast.makeText(this, getString(R.string.pair_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+            return
+        }
+        if (card == null) {
             Toast.makeText(this, R.string.scan_not_a_card, Toast.LENGTH_LONG).show()
             return
         }
         try {
-            val card = ContactCard.decode(text)
             val contact = App.services().crypto.addContact(card)
             refresh()
             AlertDialog.Builder(this)
@@ -162,5 +168,34 @@ class HomeActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, getString(R.string.pair_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
         }
+    }
+
+    /** A scanned/pasted invite may be the text link or the binary QR payload. */
+    private fun decodeCard(text: String): ContactCard? {
+        if (ContactCard.looksLikeCard(text.trim())) return ContactCard.decode(text.trim())
+        val bytes = text.toByteArray(Charsets.ISO_8859_1)
+        if (ContactCard.looksBinary(bytes)) return ContactCard.decodeBinary(bytes)
+        return null
+    }
+
+    private fun pasteInvite() {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.paste_hint)
+            setText(clipboardText())
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.home_paste)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                handleScanned(input.text?.toString().orEmpty())
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun clipboardText(): String {
+        val cm = getSystemService(android.content.ClipboardManager::class.java)
+        val item = cm?.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)
+        return item?.coerceToText(this)?.toString()?.takeIf { ContactCard.looksLikeCard(it.trim()) } ?: ""
     }
 }
