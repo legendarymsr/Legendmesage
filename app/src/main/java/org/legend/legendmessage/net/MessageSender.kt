@@ -22,6 +22,11 @@ class MessageSender(
 ) {
     private val executor = Executors.newSingleThreadExecutor()
 
+    /** Human-readable summary of the last delivery attempt, for the Diagnostics screen. */
+    @Volatile
+    var lastStatus: String = "idle"
+        private set
+
     fun send(peerHex: String, text: String) {
         executor.execute {
             try {
@@ -40,27 +45,36 @@ class MessageSender(
     }
 
     private fun deliverPending() {
-        if (TorState.status != TorState.Status.ON) return
-        for (pending in messages.pendingOutgoing()) {
-            val contact = contacts.get(pending.peerHex) ?: continue
-            val envelope = Wire.Envelope(crypto.myIdentityKeyBytes(), pending.cipherType, pending.cipherBody)
-
+        val pending = messages.pendingOutgoing()
+        if (TorState.status != TorState.Status.ON) {
+            if (pending.isNotEmpty()) lastStatus = "Tor offline — ${pending.size} message(s) queued"
+            return
+        }
+        if (pending.isEmpty()) return
+        for (message in pending) {
+            val contact = contacts.get(message.peerHex) ?: continue
+            val envelope = Wire.Envelope(crypto.myIdentityKeyBytes(), message.cipherType, message.cipherBody)
             var delivered = false
+            var reason = "no route (no onion or mailbox for ${contact.displayName})"
+
             if (contact.onionAddress.isNotBlank()) {
-                delivered = runCatching { deliverDirect(contact.onionAddress, envelope) }
-                    .onFailure { Log.i(TAG, "direct delivery deferred: ${it.message}") }
-                    .isSuccess
+                runCatching { deliverDirect(contact.onionAddress, envelope) }
+                    .onSuccess { delivered = true; lastStatus = "Delivered to ${contact.displayName} (direct)" }
+                    .onFailure { reason = "direct to ${contact.displayName} failed: ${it.message}" }
             }
             if (!delivered && contact.mailboxAddress.isNotBlank()) {
-                val recipientId = CryptoEngine.bytesOfHex(pending.peerHex)
-                delivered = runCatching { MailboxClient.deposit(contact.mailboxAddress, recipientId, envelope) }
-                    .onFailure { Log.i(TAG, "mailbox deposit deferred: ${it.message}") }
-                    .isSuccess
+                val recipientId = CryptoEngine.bytesOfHex(message.peerHex)
+                runCatching { MailboxClient.deposit(contact.mailboxAddress, recipientId, envelope) }
+                    .onSuccess { delivered = true; lastStatus = "Delivered to ${contact.displayName}'s mailbox" }
+                    .onFailure { reason = "mailbox for ${contact.displayName} failed: ${it.message}" }
             }
 
             if (delivered) {
-                messages.markSent(pending.id)
-                MessageBus.notifyChanged(pending.peerHex)
+                messages.markSent(message.id)
+                MessageBus.notifyChanged(message.peerHex)
+            } else {
+                lastStatus = "Queued — $reason"
+                Log.i(TAG, lastStatus)
             }
         }
     }
