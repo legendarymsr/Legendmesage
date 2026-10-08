@@ -74,6 +74,11 @@
     <string name="settings_import_ok">Identity restored. Please restart the app.</string>
     <string name="settings_failed">Failed: %1$s</string>
 
+    <!-- Diagnostics -->
+    <string name="diag_open">Diagnostics</string>
+    <string name="diag_title">Diagnostics</string>
+    <string name="diag_retry">Retry delivery now</string>
+
     <!-- Mailbox -->
     <string name="mailbox_title">Mailbox (offline delivery)</string>
     <string name="mailbox_blurb">Without a mailbox, you and a contact must be online at the same time. A mailbox is another always-on device running this app in mailbox mode; it holds encrypted messages for you until you pick them up. It only ever sees ciphertext.</string>

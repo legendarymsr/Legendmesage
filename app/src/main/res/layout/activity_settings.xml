@@ -24,6 +24,13 @@
         android:textSize="14sp" />
 
     <Button
+        android:id="@+id/diagnosticsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/diag_open" />
+
+    <Button
         android:id="@+id/exportButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
