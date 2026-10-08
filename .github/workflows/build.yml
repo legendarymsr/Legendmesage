@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -38,9 +38,30 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Upload debug APK
+      - name: Name the APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/legendmessage.apk
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: legendmessage-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: legendmessage-apk
+          path: dist/legendmessage.apk
           if-no-files-found: error
+
+      # On pushes to the default branch, publish a stable download link.
+      - name: Publish to the "latest" release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2.0.8
+        with:
+          tag_name: latest
+          name: LegendMessage (latest build)
+          body: |
+            Rolling debug build of LegendMessage from the latest commit on `main`.
+
+            Download **legendmessage.apk** below and sideload it (arm64 devices).
+            Signed with the repo's throwaway key, so builds update over each other.
+            This is a build-verified, unaudited personal-use app — see the README.
+          files: dist/legendmessage.apk
+          make_latest: true

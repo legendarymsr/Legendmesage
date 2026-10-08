@@ -38,6 +38,20 @@ class IdentityManager(context: Context, private val store: SecretStore) {
             prefs.edit().putString(PREF_ONION, value).apply()
         }
 
+    /** Onion of the mailbox that holds our mail while we're offline (advertised + polled). */
+    var mailboxAddress: String
+        get() = prefs.getString(PREF_MAILBOX, "") ?: ""
+        set(value) {
+            prefs.edit().putString(PREF_MAILBOX, value.trim()).apply()
+        }
+
+    /** Whether this device acts as a mailbox, holding ciphertext for other recipients. */
+    var mailboxEnabled: Boolean
+        get() = prefs.getBoolean(PREF_MAILBOX_MODE, false)
+        set(value) {
+            prefs.edit().putBoolean(PREF_MAILBOX_MODE, value).apply()
+        }
+
     /** Generate and persist a fresh identity. Safe to call only when [exists] is false. */
     fun create(displayName: String): IdentityKeyPair {
         val keyPair = IdentityKeyPair.generate()
@@ -74,6 +88,8 @@ class IdentityManager(context: Context, private val store: SecretStore) {
         private const val PREF_REG_ID = "registration_id"
         private const val PREF_NAME = "display_name"
         private const val PREF_ONION = "onion_address"
+        private const val PREF_MAILBOX = "mailbox_address"
+        private const val PREF_MAILBOX_MODE = "mailbox_mode"
 
         fun fingerprintOf(identityKey: IdentityKey): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(identityKey.serialize())

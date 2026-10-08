@@ -20,3 +20,5 @@ local.properties
 *.keystore
 *.jks
 keystore.properties
+# ...except the intentional throwaway sideload key (no trust; see build.gradle.kts).
+!keystore/legendmessage.jks

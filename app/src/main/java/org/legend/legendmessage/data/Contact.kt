@@ -9,6 +9,7 @@ data class Contact(
     val identityHex: String,
     val displayName: String,
     val onionAddress: String,
+    val mailboxAddress: String,
     val registrationId: Int,
     val addedAt: Long,
 )

@@ -6,16 +6,24 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /**
- * The on-the-wire message framing carried over a Tor stream. One envelope per
- * connection:
- *   [senderIdentityKey][ciphertextType][ciphertextBody]
- * The sender's identity key lets the receiver pick the right Signal session;
- * the body is a libsignal ciphertext, so the Tor stream carries only
- * already-encrypted bytes.
+ * On-the-wire framing carried over a Tor stream. Every connection starts with
+ * a one-byte opcode:
+ *
+ *  - [OP_DIRECT]  : [envelope]                       — deliver straight to the peer
+ *  - [OP_DEPOSIT] : [recipientIdKey][envelope]       — drop into the peer's mailbox
+ *  - [OP_COLLECT] : [recipientIdKey] then a signed challenge, then a batch of
+ *                   envelopes streamed back            — pull mail addressed to me
+ *
+ * An envelope is [senderIdentityKey][type][ciphertextBody]; the body is always
+ * a libsignal ciphertext, so the stream (and any mailbox) only ever sees
+ * already-encrypted message content.
  */
 object Wire {
-    private const val MAX_ID = 1024
-    private const val MAX_BODY = 1 shl 20 // 1 MiB ciphertext ceiling
+    const val OP_DIRECT = 1
+    const val OP_DEPOSIT = 2
+    const val OP_COLLECT = 3
+
+    private const val MAX_FRAME = 1 shl 20 // 1 MiB
 
     data class Envelope(val senderId: ByteArray, val type: Int, val body: ByteArray) {
         override fun equals(other: Any?): Boolean {
@@ -34,25 +42,32 @@ object Wire {
         }
     }
 
-    fun write(out: OutputStream, senderId: ByteArray, type: Int, body: ByteArray) {
-        val d = DataOutputStream(out)
-        d.writeInt(senderId.size)
-        d.write(senderId)
-        d.writeInt(type)
-        d.writeInt(body.size)
-        d.write(body)
-        d.flush()
+    fun output(stream: OutputStream) = DataOutputStream(stream)
+
+    fun input(stream: InputStream) = DataInputStream(stream)
+
+    fun writeFrame(out: DataOutputStream, data: ByteArray) {
+        out.writeInt(data.size)
+        out.write(data)
     }
 
-    fun read(input: InputStream): Envelope {
-        val d = DataInputStream(input)
-        val idLen = d.readInt()
-        require(idLen in 1..MAX_ID) { "bad id length $idLen" }
-        val id = ByteArray(idLen).also { d.readFully(it) }
-        val type = d.readInt()
-        val bodyLen = d.readInt()
-        require(bodyLen in 1..MAX_BODY) { "bad body length $bodyLen" }
-        val body = ByteArray(bodyLen).also { d.readFully(it) }
-        return Envelope(id, type, body)
+    fun readFrame(input: DataInputStream): ByteArray {
+        val len = input.readInt()
+        require(len in 0..MAX_FRAME) { "bad frame length $len" }
+        return ByteArray(len).also { input.readFully(it) }
+    }
+
+    fun writeEnvelope(out: DataOutputStream, envelope: Envelope) {
+        writeFrame(out, envelope.senderId)
+        out.writeInt(envelope.type)
+        writeFrame(out, envelope.body)
+    }
+
+    fun readEnvelope(input: DataInputStream): Envelope {
+        val senderId = readFrame(input)
+        val type = input.readInt()
+        val body = readFrame(input)
+        require(senderId.isNotEmpty() && body.isNotEmpty()) { "empty envelope" }
+        return Envelope(senderId, type, body)
     }
 }

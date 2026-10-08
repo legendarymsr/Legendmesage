@@ -34,6 +34,21 @@ class MessageDb(private val context: Context, private val secretStore: SecretSto
             """.trimIndent(),
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_peer_ts ON messages(peer, ts)")
+        // When this device acts as a mailbox, it stores ciphertext deposited for
+        // other recipients until they collect it. Content is opaque ciphertext.
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS mailbox (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipient TEXT NOT NULL,
+                sender BLOB NOT NULL,
+                type INTEGER NOT NULL,
+                body BLOB NOT NULL,
+                ts INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_mailbox_recipient ON mailbox(recipient, id)")
         return db
     }
 

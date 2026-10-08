@@ -9,11 +9,11 @@ import org.legend.legendmessage.tor.TorState
 import java.util.concurrent.Executors
 
 /**
- * Outbound side. A message is encrypted once at enqueue time (advancing the
- * ratchet exactly once) and stored as pending ciphertext; delivery is a
- * separate step that can be retried without re-encrypting. If the peer is
- * offline the message simply stays pending until the next [flush] — the
- * offline queue.
+ * Outbound side. A message is encrypted once at enqueue (ratchet advances
+ * exactly once) and stored as pending ciphertext; delivery is retried without
+ * re-encrypting. Delivery tries the peer's onion directly first, then falls
+ * back to depositing in the peer's mailbox if they advertise one. If neither
+ * works it stays queued — the offline queue — and flushes on the next attempt.
  */
 class MessageSender(
     private val contacts: ContactStore,
@@ -22,7 +22,6 @@ class MessageSender(
 ) {
     private val executor = Executors.newSingleThreadExecutor()
 
-    /** Encrypt + persist [text] for [peerHex], then attempt delivery. */
     fun send(peerHex: String, text: String) {
         executor.execute {
             try {
@@ -36,7 +35,6 @@ class MessageSender(
         }
     }
 
-    /** Try to deliver everything still pending (called on send and when Tor comes online). */
     fun flush() {
         executor.execute { deliverPending() }
     }
@@ -45,22 +43,35 @@ class MessageSender(
         if (TorState.status != TorState.Status.ON) return
         for (pending in messages.pendingOutgoing()) {
             val contact = contacts.get(pending.peerHex) ?: continue
-            if (contact.onionAddress.isBlank()) continue
-            try {
-                TorState.openThroughTor(contact.onionAddress, TorConfig.VIRTUAL_PORT).use { socket ->
-                    socket.soTimeout = 60_000
-                    Wire.write(
-                        socket.getOutputStream(),
-                        crypto.myIdentityKeyBytes(),
-                        pending.cipherType,
-                        pending.cipherBody,
-                    )
-                }
+            val envelope = Wire.Envelope(crypto.myIdentityKeyBytes(), pending.cipherType, pending.cipherBody)
+
+            var delivered = false
+            if (contact.onionAddress.isNotBlank()) {
+                delivered = runCatching { deliverDirect(contact.onionAddress, envelope) }
+                    .onFailure { Log.i(TAG, "direct delivery deferred: ${it.message}") }
+                    .isSuccess
+            }
+            if (!delivered && contact.mailboxAddress.isNotBlank()) {
+                val recipientId = CryptoEngine.bytesOfHex(pending.peerHex)
+                delivered = runCatching { MailboxClient.deposit(contact.mailboxAddress, recipientId, envelope) }
+                    .onFailure { Log.i(TAG, "mailbox deposit deferred: ${it.message}") }
+                    .isSuccess
+            }
+
+            if (delivered) {
                 messages.markSent(pending.id)
                 MessageBus.notifyChanged(pending.peerHex)
-            } catch (e: Exception) {
-                Log.i(TAG, "delivery deferred for ${pending.peerHex}: ${e.message}")
             }
+        }
+    }
+
+    private fun deliverDirect(onion: String, envelope: Wire.Envelope) {
+        TorState.openThroughTor(onion, TorConfig.VIRTUAL_PORT).use { socket ->
+            socket.soTimeout = 60_000
+            val out = Wire.output(socket.getOutputStream())
+            out.writeByte(Wire.OP_DIRECT)
+            Wire.writeEnvelope(out, envelope)
+            out.flush()
         }
     }
 

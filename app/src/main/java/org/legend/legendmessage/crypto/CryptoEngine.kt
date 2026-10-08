@@ -73,6 +73,7 @@ class CryptoEngine(
             kyberPreKey = kyber.keyPair.publicKey.serialize(),
             kyberPreKeySignature = kyber.signature,
             onionAddress = onionAddress,
+            mailboxAddress = identity.mailboxAddress,
         )
     }
 
@@ -94,6 +95,7 @@ class CryptoEngine(
             identityHex = hex,
             displayName = card.displayName.ifBlank { "Unknown" },
             onionAddress = card.onionAddress,
+            mailboxAddress = card.mailboxAddress,
             registrationId = card.registrationId,
             addedAt = System.currentTimeMillis(),
         )
@@ -179,6 +181,11 @@ class CryptoEngine(
     companion object {
         fun hexOf(bytes: ByteArray): String =
             bytes.joinToString("") { "%02x".format(it) }
+
+        fun bytesOfHex(hex: String): ByteArray =
+            ByteArray(hex.length / 2) { i ->
+                ((Character.digit(hex[i * 2], 16) shl 4) + Character.digit(hex[i * 2 + 1], 16)).toByte()
+            }
     }
 }
 

@@ -21,6 +21,7 @@ class ContactStore(private val store: SecretStore) {
                 identityHex = o.getString("id"),
                 displayName = o.getString("name"),
                 onionAddress = o.optString("onion", ""),
+                mailboxAddress = o.optString("mailbox", ""),
                 registrationId = o.optInt("reg", 0),
                 addedAt = o.optLong("at", 0L),
             )
@@ -48,6 +49,7 @@ class ContactStore(private val store: SecretStore) {
                     .put("id", c.identityHex)
                     .put("name", c.displayName)
                     .put("onion", c.onionAddress)
+                    .put("mailbox", c.mailboxAddress)
                     .put("reg", c.registrationId)
                     .put("at", c.addedAt),
             )

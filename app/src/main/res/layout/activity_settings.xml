@@ -44,4 +44,77 @@
         android:text="@string/settings_footnote"
         android:textColor="@color/tn_dim"
         android:textSize="12sp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginVertical="24dp"
+        android:background="@color/tn_surface" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/mailbox_title"
+        android:textColor="@color/tn_blue"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/mailbox_blurb"
+        android:textColor="@color/tn_dim"
+        android:textSize="13sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/mailbox_my_address_label"
+        android:textColor="@color/tn_fg"
+        android:textSize="14sp" />
+
+    <EditText
+        android:id="@+id/mailboxAddressInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:hint="@string/mailbox_my_address_hint"
+        android:inputType="textNoSuggestions"
+        android:textColor="@color/tn_fg"
+        android:textColorHint="@color/tn_dim"
+        android:textSize="13sp" />
+
+    <Button
+        android:id="@+id/mailboxSaveButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:text="@string/mailbox_save" />
+
+    <CheckBox
+        android:id="@+id/mailboxModeCheck"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/mailbox_mode_label"
+        android:textColor="@color/tn_fg" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/mailbox_this_device_label"
+        android:textColor="@color/tn_dim"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/mailboxThisDevice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:textColor="@color/tn_green"
+        android:textIsSelectable="true"
+        android:textSize="12sp" />
 </LinearLayout>
