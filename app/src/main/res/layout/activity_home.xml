@@ -88,10 +88,25 @@
             android:textSize="15sp" />
     </FrameLayout>
 
-    <Button
-        android:id="@+id/addButton"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:text="@string/home_add_contact" />
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <Button
+            android:id="@+id/addButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/home_add_contact" />
+
+        <Button
+            android:id="@+id/pasteButton"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/home_paste" />
+    </LinearLayout>
 </LinearLayout>

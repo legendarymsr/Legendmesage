@@ -31,12 +31,21 @@
 
         <ImageView
             android:id="@+id/qrImage"
-            android:layout_width="280dp"
-            android:layout_height="280dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
+            android:adjustViewBounds="true"
             android:background="#FFFFFF"
             android:contentDescription="@string/mycode_qr_desc"
-            android:padding="8dp" />
+            android:padding="10dp"
+            android:scaleType="fitCenter" />
+
+        <Button
+            android:id="@+id/shareButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/mycode_share" />
 
         <TextView
             android:id="@+id/routeText"

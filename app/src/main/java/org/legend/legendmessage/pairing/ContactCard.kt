@@ -25,8 +25,8 @@ data class ContactCard(
     val onionAddress: String,
     val mailboxAddress: String,
 ) {
-    fun encode(): String {
-        val body = CardWriter()
+    private fun body(): ByteArray =
+        CardWriter()
             .putByte(VERSION)
             .putString(displayName)
             .putInt(registrationId)
@@ -40,18 +40,38 @@ data class ContactCard(
             .putString(onionAddress)
             .putString(mailboxAddress)
             .toByteArray()
-        return PREFIX + B64.encode(body)
-    }
+
+    /** Text form, for sharing as an invite link (copy/paste, messaging apps). */
+    fun encode(): String = PREFIX + B64.encode(body())
+
+    /**
+     * Compact binary form, for the QR. The card carries a ~1.5 KB post-quantum
+     * key, so encoding the raw bytes (byte mode) instead of base64 keeps the QR
+     * ~25% lower-density — enough fewer modules to actually scan.
+     */
+    fun encodeBinary(): ByteArray = MAGIC + body()
 
     companion object {
         const val PREFIX = "LMC2:"
         private const val VERSION = 2
+        private val MAGIC = byteArrayOf('L'.code.toByte(), 'M'.code.toByte())
 
         fun looksLikeCard(text: String) = text.startsWith(PREFIX)
 
+        fun looksBinary(bytes: ByteArray) =
+            bytes.size > MAGIC.size && bytes[0] == MAGIC[0] && bytes[1] == MAGIC[1]
+
         fun decode(text: String): ContactCard {
             require(text.startsWith(PREFIX)) { "not a LegendMessage contact card" }
-            val r = CardReader(B64.decode(text.removePrefix(PREFIX)))
+            return parse(CardReader(B64.decode(text.removePrefix(PREFIX))))
+        }
+
+        fun decodeBinary(bytes: ByteArray): ContactCard {
+            require(looksBinary(bytes)) { "not a LegendMessage contact card" }
+            return parse(CardReader(bytes.copyOfRange(MAGIC.size, bytes.size)))
+        }
+
+        private fun parse(r: CardReader): ContactCard {
             val version = r.readByte()
             require(version == VERSION) { "unsupported card version $version" }
             return ContactCard(

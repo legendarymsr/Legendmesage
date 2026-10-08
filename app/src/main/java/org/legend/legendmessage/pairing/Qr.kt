@@ -7,18 +7,28 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
-/** Renders a string into a QR [Bitmap]. */
+/** Renders text or raw bytes into a QR [Bitmap]. */
 object Qr {
-    fun encode(text: String, sizePx: Int): Bitmap {
+    fun encode(text: String, sizePx: Int): Bitmap =
+        render(text, "UTF-8", sizePx)
+
+    /**
+     * Encode raw bytes in QR byte mode (via a Latin-1 1:1 mapping), which is
+     * denser-efficient than base64 text for the large contact card.
+     */
+    fun encodeBytes(data: ByteArray, sizePx: Int): Bitmap =
+        render(String(data, Charsets.ISO_8859_1), "ISO-8859-1", sizePx)
+
+    private fun render(content: String, charset: String, sizePx: Int): Bitmap {
         val hints = mapOf(
-            // Low ECC: contact cards (esp. the Kyber key) are large, and the QR
-            // is shown on-screen for a direct scan, not printed, so robustness
-            // matters less than fitting the payload.
+            // Low ECC: the card (esp. the Kyber key) is large and the QR is shown
+            // on-screen for a direct scan, so fitting the payload matters more
+            // than print robustness.
             EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
-            EncodeHintType.MARGIN to 1,
-            EncodeHintType.CHARACTER_SET to "UTF-8",
+            EncodeHintType.MARGIN to 2,
+            EncodeHintType.CHARACTER_SET to charset,
         )
-        val matrix = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
+        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, sizePx, sizePx, hints)
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.RGB_565)
         for (x in 0 until sizePx) {
             for (y in 0 until sizePx) {

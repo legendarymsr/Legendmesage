@@ -1,7 +1,9 @@
 package org.legend.legendmessage.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
 import org.legend.legendmessage.databinding.ActivityMyCodeBinding
 import org.legend.legendmessage.pairing.Qr
@@ -26,8 +28,18 @@ class MyCodeActivity : AppCompatActivity() {
         // the cryptographic session now.
         val onion = services.identity.onionAddress
         val card = services.crypto.myCard(onion)
-        val sizePx = (resources.displayMetrics.density * 280).toInt()
-        binding.qrImage.setImageBitmap(Qr.encode(card.encode(), sizePx))
+        // Render the QR near screen-width so the (necessarily dense) code has
+        // large enough modules to scan.
+        val sizePx = (resources.displayMetrics.widthPixels * 0.92f).toInt().coerceIn(480, 1440)
+        binding.qrImage.setImageBitmap(Qr.encodeBytes(card.encodeBinary(), sizePx))
+
+        binding.shareButton.setOnClickListener {
+            val share = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, card.encode())
+            }
+            startActivity(Intent.createChooser(share, getString(R.string.mycode_share)))
+        }
 
         binding.routeText.text = if (onion.isBlank()) {
             getString(org.legend.legendmessage.R.string.mycode_no_onion)
