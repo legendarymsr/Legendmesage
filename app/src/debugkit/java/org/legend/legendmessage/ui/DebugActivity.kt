@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import org.legend.legendmessage.BuildConfig
-import org.legend.legendmessage.MainActivity
 import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
 import org.legend.legendmessage.databinding.ActivityDebugBinding
@@ -117,8 +116,8 @@ class DebugActivity : AppCompatActivity() {
         runCatching { getDatabasePath("messages.db").parentFile?.listFiles()?.forEach { it.delete() } }
         runCatching { getSharedPreferences("identity", MODE_PRIVATE).edit().clear().apply() }
 
-        // Relaunch from scratch.
-        val intent = Intent(this, MainActivity::class.java)
+        // Relaunch the debug hub (the debug app stays in debugging, not the messenger).
+        val intent = Intent(this, DebugActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         startActivity(intent)
         finishAffinity()

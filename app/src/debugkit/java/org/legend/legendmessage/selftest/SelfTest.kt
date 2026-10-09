@@ -10,12 +10,19 @@ import org.legend.legendmessage.data.MailboxStore
 import org.legend.legendmessage.data.MessageDb
 import org.legend.legendmessage.data.MessageStore
 import org.legend.legendmessage.net.InboundDelivery
+import org.legend.legendmessage.net.MailboxProtocol
 import org.legend.legendmessage.net.Wire
 import org.signal.libsignal.protocol.ecc.ECPublicKey
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
 import java.security.SecureRandom
+import java.util.concurrent.BlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * An on-device "two devices talking" test. It builds two fully independent
@@ -117,6 +124,52 @@ class SelfTest(private val context: Context) {
                 bob.messages.history(alice.hexStr).any { it.body == offline })
             check("Mailbox emptied after collect", box.mailbox.collectAndDelete(bob.hexStr).isEmpty())
 
+            // --- Streaming mailbox (OP_SUBSCRIBE) over a real loopback socket ---
+            log("")
+            log("Testing the streaming mailbox over a loopback socket…")
+            val server = ServerSocket().apply { bind(InetSocketAddress("127.0.0.1", 0)) }
+            val port = server.localPort
+            val accept = Thread {
+                runCatching {
+                    while (!Thread.currentThread().isInterrupted) {
+                        val sock = server.accept()
+                        Thread { MailboxProtocol.handle(sock, box.inbound, box.mailbox, true) }
+                            .apply { isDaemon = true }.start()
+                    }
+                }
+            }.apply { isDaemon = true; start() }
+
+            try {
+                // Backlog delivered over the stream after a signed-challenge auth.
+                val backlogText = "stream backlog msg"
+                depositViaWire(port, bob.hex, encrypt(alice, bob.hexStr, backlogText))
+                val backlogEnv = subscribeReadOne(port, bob, 6000)
+                check("Stream: subscribe delivers backlog", backlogEnv != null)
+                backlogEnv?.let { bob.inbound.deliver(it) }
+                check("Stream: backlog message decrypted",
+                    bob.messages.history(alice.hexStr).any { it.body == backlogText })
+
+                // A wrong signature gets no stream.
+                check("Stream: wrong signature is rejected",
+                    !subscribeAcceptsBadAuth(port, recipient = bob, signer = alice))
+
+                // Live push: subscribe first, then a deposit is pushed instantly.
+                val pushText = "stream push msg"
+                val queue: BlockingQueue<Wire.Envelope> = LinkedBlockingQueue()
+                val sub = Thread { streamInto(port, bob, queue) }.apply { isDaemon = true; start() }
+                Thread.sleep(600) // let it subscribe + consume the first keepalive
+                depositViaWire(port, bob.hex, encrypt(alice, bob.hexStr, pushText))
+                val pushed = queue.poll(6, TimeUnit.SECONDS)
+                check("Stream: live push received", pushed != null)
+                pushed?.let { bob.inbound.deliver(it) }
+                check("Stream: pushed message decrypted",
+                    bob.messages.history(alice.hexStr).any { it.body == pushText })
+                sub.interrupt()
+            } finally {
+                runCatching { server.close() }
+                accept.interrupt()
+            }
+
             // A message from a stranger must be rejected.
             val stranger = makePeer(runId, "x", "Stranger")
             peers += stranger
@@ -154,6 +207,83 @@ class SelfTest(private val context: Context) {
     private fun encrypt(sender: Peer, recipientHex: String, text: String): Wire.Envelope {
         val enc = sender.crypto.encrypt(recipientHex, text.toByteArray(Charsets.UTF_8))
         return Wire.Envelope(sender.crypto.myIdentityKeyBytes(), enc.type, enc.body)
+    }
+
+    // ---- streaming-mailbox test helpers (real loopback sockets) ----
+
+    private fun depositViaWire(port: Int, recipientId: ByteArray, envelope: Wire.Envelope) {
+        Socket("127.0.0.1", port).use { s ->
+            val out = Wire.output(s.getOutputStream())
+            out.writeByte(Wire.OP_DEPOSIT)
+            Wire.writeFrame(out, recipientId)
+            Wire.writeEnvelope(out, envelope)
+            out.flush()
+            Thread.sleep(250) // let the server store + signal before we close
+        }
+    }
+
+    private fun subscribeHandshake(s: Socket, recipientId: ByteArray, signerKey: org.signal.libsignal.protocol.ecc.ECPrivateKey) {
+        val out = Wire.output(s.getOutputStream())
+        val input = Wire.input(s.getInputStream())
+        out.writeByte(Wire.OP_SUBSCRIBE)
+        Wire.writeFrame(out, recipientId)
+        out.flush()
+        val challenge = Wire.readFrame(input)
+        Wire.writeFrame(out, signerKey.calculateSignature(challenge))
+        out.flush()
+    }
+
+    private fun subscribeReadOne(port: Int, peer: Peer, timeoutMs: Int): Wire.Envelope? {
+        val s = Socket().apply { connect(InetSocketAddress("127.0.0.1", port), 3000) }
+        s.use {
+            subscribeHandshake(it, peer.hex, peer.identity.identityKeyPair().privateKey)
+            val input = Wire.input(it.getInputStream())
+            it.soTimeout = timeoutMs
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (System.currentTimeMillis() < deadline) {
+                val kind = try { Wire.readStreamKind(input) } catch (e: Exception) { return null }
+                when (kind) {
+                    Wire.STREAM_ENVELOPE -> return Wire.readEnvelope(input)
+                    Wire.STREAM_KEEPALIVE -> Unit
+                    else -> return null
+                }
+            }
+            return null
+        }
+    }
+
+    /** Returns true if the server streamed anything despite a wrong signature (i.e. auth failed open). */
+    private fun subscribeAcceptsBadAuth(port: Int, recipient: Peer, signer: Peer): Boolean {
+        val s = Socket().apply { connect(InetSocketAddress("127.0.0.1", port), 3000) }
+        s.use {
+            subscribeHandshake(it, recipient.hex, signer.identity.identityKeyPair().privateKey)
+            val input = Wire.input(it.getInputStream())
+            it.soTimeout = 3000
+            return try {
+                Wire.readStreamKind(input)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    private fun streamInto(port: Int, peer: Peer, queue: BlockingQueue<Wire.Envelope>) {
+        runCatching {
+            val s = Socket().apply { connect(InetSocketAddress("127.0.0.1", port), 3000) }
+            s.use {
+                subscribeHandshake(it, peer.hex, peer.identity.identityKeyPair().privateKey)
+                val input = Wire.input(it.getInputStream())
+                it.soTimeout = 10_000
+                while (!Thread.currentThread().isInterrupted) {
+                    when (Wire.readStreamKind(input)) {
+                        Wire.STREAM_ENVELOPE -> queue.put(Wire.readEnvelope(input))
+                        Wire.STREAM_KEEPALIVE -> Unit
+                        else -> break
+                    }
+                }
+            }
+        }
     }
 
     /** Sender hasn't paired with recipient; build an envelope anyway (for the drop test). */
