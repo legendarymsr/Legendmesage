@@ -41,6 +41,27 @@ class MailboxStore(private val db: MessageDb) {
             .use { c -> return if (c.moveToFirst()) c.getInt(0) else 0 }
     }
 
+    /** Envelopes held for [recipientHex], WITHOUT deleting (for the streaming path). */
+    @Synchronized
+    fun peekAll(recipientHex: String): List<Pair<Long, Wire.Envelope>> {
+        val list = mutableListOf<Pair<Long, Wire.Envelope>>()
+        db.database.rawQuery(
+            "SELECT id, sender, type, body FROM mailbox WHERE recipient=? ORDER BY id",
+            arrayOf(recipientHex),
+        ).use { c ->
+            while (c.moveToNext()) {
+                list.add(c.getLong(0) to Wire.Envelope(c.getBlob(1), c.getInt(2), c.getBlob(3)))
+            }
+        }
+        return list
+    }
+
+    /** Delete one held message by id (after it has been delivered). */
+    @Synchronized
+    fun deleteById(id: Long) {
+        db.database.execSQL("DELETE FROM mailbox WHERE id=?", arrayOf(id.toString()))
+    }
+
     /** Read and remove every envelope held for [recipientHex] (atomic). */
     @Synchronized
     fun collectAndDelete(recipientHex: String): List<Wire.Envelope> {

@@ -59,11 +59,16 @@ object MailboxProtocol {
         val output = Wire.output(socket.getOutputStream())
         val recipientHex = hex(recipientId)
         while (!Thread.currentThread().isInterrupted && !socket.isClosed) {
-            val backlog = mailbox.collectAndDelete(recipientHex)
-            if (backlog.isEmpty()) {
+            val held = mailbox.peekAll(recipientHex)
+            if (held.isEmpty()) {
                 Wire.writeStreamKeepalive(output) // also surfaces a dead socket
             } else {
-                backlog.forEach { Wire.writeStreamEnvelope(output, it) }
+                // Write THEN delete: a dead socket's write throws before the
+                // delete, so a stale subscriber can't steal and lose the message.
+                for ((id, envelope) in held) {
+                    Wire.writeStreamEnvelope(output, envelope)
+                    mailbox.deleteById(id)
+                }
             }
             MailboxNotifier.await(recipientHex, KEEPALIVE_MS)
         }
