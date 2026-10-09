@@ -35,6 +35,12 @@ class CryptoEngine(
     private val signedPreKeyId = 1
     private val kyberPreKeyId = 1
 
+    // libsignal session state is not safe to advance concurrently. All ratchet
+    // operations — encrypt (send), decrypt (receive), and session setup — are
+    // serialized on this lock, so a simultaneous outbox flush and mailbox
+    // delivery for the same peer cannot desync the Double Ratchet.
+    private val ratchetLock = Any()
+
     /** Ensure our signed + Kyber prekeys exist (idempotent; call after identity creation). */
     fun ensurePreKeys() {
         if (!store.containsSignedPreKey(signedPreKeyId)) {
@@ -87,7 +93,7 @@ class CryptoEngine(
      * two different sessions. Instead the first sender initiates and the other
      * side establishes its session by receiving that first (PreKey) message.
      */
-    fun addContact(card: ContactCard): Contact {
+    fun addContact(card: ContactCard): Contact = synchronized(ratchetLock) {
         val hex = hexOf(card.identityKey)
         store.rawPut("card_$hex", card.encode().toByteArray(Charsets.UTF_8))
 
@@ -100,7 +106,7 @@ class CryptoEngine(
             addedAt = System.currentTimeMillis(),
         )
         contacts.upsert(contact)
-        return contact
+        contact
     }
 
     fun hasSession(identityHex: String): Boolean =
@@ -130,23 +136,25 @@ class CryptoEngine(
     }
 
     /** Encrypt [plaintext] for a contact, returning the ciphertext type and bytes. */
-    fun encrypt(identityHex: String, plaintext: ByteArray): EncryptedMessage {
-        ensureSession(identityHex)
-        val address = SignalProtocolAddress(identityHex, localDeviceId)
-        val message: CiphertextMessage = SessionCipher(store, address).encrypt(plaintext)
-        return EncryptedMessage(message.type, message.serialize())
-    }
+    fun encrypt(identityHex: String, plaintext: ByteArray): EncryptedMessage =
+        synchronized(ratchetLock) {
+            ensureSession(identityHex)
+            val address = SignalProtocolAddress(identityHex, localDeviceId)
+            val message: CiphertextMessage = SessionCipher(store, address).encrypt(plaintext)
+            EncryptedMessage(message.type, message.serialize())
+        }
 
     /** Decrypt a ciphertext previously produced by [encrypt] on the peer side. */
-    fun decrypt(identityHex: String, type: Int, body: ByteArray): ByteArray {
-        val address = SignalProtocolAddress(identityHex, localDeviceId)
-        val cipher = SessionCipher(store, address)
-        return when (type) {
-            CiphertextMessage.PREKEY_TYPE ->
-                cipher.decrypt(PreKeySignalMessage(body), UsePqRatchet.YES)
-            else -> cipher.decrypt(SignalMessage(body))
+    fun decrypt(identityHex: String, type: Int, body: ByteArray): ByteArray =
+        synchronized(ratchetLock) {
+            val address = SignalProtocolAddress(identityHex, localDeviceId)
+            val cipher = SessionCipher(store, address)
+            when (type) {
+                CiphertextMessage.PREKEY_TYPE ->
+                    cipher.decrypt(PreKeySignalMessage(body), UsePqRatchet.YES)
+                else -> cipher.decrypt(SignalMessage(body))
+            }
         }
-    }
 
     private fun addressFor(identityKey: ByteArray) =
         SignalProtocolAddress(hexOf(identityKey), localDeviceId)

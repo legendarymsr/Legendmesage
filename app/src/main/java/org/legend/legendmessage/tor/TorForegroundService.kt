@@ -12,6 +12,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -53,6 +55,16 @@ class TorForegroundService : Service() {
         }
     }
 
+    private val connectivityManager by lazy { getSystemService(ConnectivityManager::class.java) }
+
+    // Android silently kills Tor circuits across a network switch (e.g. Wi-Fi ->
+    // cellular). On a change we rebuild circuits (NEWNYM), drop and reconnect the
+    // mailbox stream, and retry the outbox — instead of hanging on dead sockets.
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = onNetworkChanged()
+        override fun onLost(network: Network) = onNetworkChanged()
+    }
+
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.getStringExtra(TorService.EXTRA_STATUS)) {
@@ -77,6 +89,17 @@ class TorForegroundService : Service() {
         )
         // BIND_AUTO_CREATE starts TorService, which launches the embedded Tor.
         bindService(Intent(this, TorService::class.java), connection, Context.BIND_AUTO_CREATE)
+
+        runCatching { connectivityManager?.registerDefaultNetworkCallback(networkCallback) }
+    }
+
+    private fun onNetworkChanged() {
+        if (TorState.status != TorState.Status.ON) return
+        io.execute {
+            runCatching { torService?.torControlConnection?.signal("NEWNYM") }
+            runCatching { App.services().mailboxPoller.reconnect() }
+            runCatching { App.services().sender.flush() }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -85,6 +108,8 @@ class TorForegroundService : Service() {
 
     override fun onDestroy() {
         runCatching { App.services().peerServer.stop() }
+        runCatching { App.services().mailboxPoller.stop() }
+        runCatching { connectivityManager?.unregisterNetworkCallback(networkCallback) }
         runCatching { unbindService(connection) }
         runCatching { unregisterReceiver(statusReceiver) }
         io.shutdownNow()
@@ -128,19 +153,20 @@ class TorForegroundService : Service() {
                 TorState.update(status = TorState.Status.ON, onionAddress = onion, socksPort = socks)
                 updateNotification(getString(R.string.tor_notif_on))
 
-                // Online: accept inbound streams, flush the outbox, collect mail,
-                // and keep polling the mailbox + retrying the outbox periodically.
+                // Online: accept inbound streams, open the long-lived mailbox
+                // subscription, and flush the outbox. A low-frequency fallback
+                // retries the outbox and heals the subscription if it died.
                 services.peerServer.start()
+                services.mailboxPoller.start()
                 services.sender.flush()
-                services.mailboxPoller.poll()
                 if (!polling) {
                     polling = true
                     scheduler.scheduleWithFixedDelay({
                         if (TorState.status == TorState.Status.ON) {
                             App.services().sender.flush()
-                            App.services().mailboxPoller.poll()
+                            App.services().mailboxPoller.start() // idempotent; restarts if stopped
                         }
-                    }, POLL_SECONDS, POLL_SECONDS, TimeUnit.SECONDS)
+                    }, FALLBACK_SECONDS, FALLBACK_SECONDS, TimeUnit.SECONDS)
                 }
             }
         } catch (e: Exception) {
@@ -198,7 +224,10 @@ class TorForegroundService : Service() {
     companion object {
         private const val CHANNEL_ID = "legendmessage.tor"
         private const val NOTIF_ID = 1001
-        private const val POLL_SECONDS = 120L
+
+        // The mailbox stream delivers promptly; this is just a safety-net retry
+        // for the outbox and to heal a dead subscription, so it can be rare.
+        private const val FALLBACK_SECONDS = 600L
 
         fun start(context: Context) {
             val intent = Intent(context, TorForegroundService::class.java)

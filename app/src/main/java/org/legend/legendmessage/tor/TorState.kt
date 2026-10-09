@@ -64,10 +64,13 @@ object TorState {
      * unresolved address so the onion hostname is resolved by Tor, not locally.
      */
     @Throws(Exception::class)
-    fun openThroughTor(host: String, port: Int, timeoutMs: Int = 60_000): Socket {
+    fun openThroughTor(host: String, port: Int, timeoutMs: Int = 30_000): Socket {
         check(socksPort > 0) { "Tor SOCKS port not known yet" }
         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", socksPort))
         val socket = Socket(proxy)
+        // TCP keep-alive so a silently dropped circuit (e.g. Wi-Fi -> cellular)
+        // is detected rather than hanging on a long read.
+        runCatching { socket.keepAlive = true }
         socket.connect(InetSocketAddress.createUnresolved(host, port), timeoutMs)
         return socket
     }
