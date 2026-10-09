@@ -61,6 +61,8 @@ class SelfTest(private val context: Context) {
         }
 
         try {
+            log("LegendMsg Debug v${org.legend.legendmessage.BuildConfig.VERSION_NAME} — self-test")
+            log("")
             sweepOldRuns()
             val alice = makePeer(runId, "a", "Alice")
             val bob = makePeer(runId, "b", "Bob")
