@@ -11,11 +11,13 @@ import org.legend.legendmessage.net.Wire
  */
 class MailboxStore(private val db: MessageDb) {
 
-    /** Per-recipient cap to bound storage a mailbox will hold. */
+    /** Caps so an open relay can't be flooded off a device.*/
     private val maxPerRecipient = 500
+    private val maxTotal = 20_000
 
+    @Synchronized
     fun deposit(recipientHex: String, envelope: Wire.Envelope): Boolean {
-        if (count(recipientHex) >= maxPerRecipient) return false
+        if (count(recipientHex) >= maxPerRecipient || total() >= maxTotal) return false
         val values = ContentValues().apply {
             put("recipient", recipientHex)
             put("sender", envelope.senderId)
@@ -34,7 +36,13 @@ class MailboxStore(private val db: MessageDb) {
         ).use { c -> return if (c.moveToFirst()) c.getInt(0) else 0 }
     }
 
+    private fun total(): Int {
+        db.database.rawQuery("SELECT COUNT(*) FROM mailbox", null as Array<String>?)
+            .use { c -> return if (c.moveToFirst()) c.getInt(0) else 0 }
+    }
+
     /** Read and remove every envelope held for [recipientHex] (atomic). */
+    @Synchronized
     fun collectAndDelete(recipientHex: String): List<Wire.Envelope> {
         val result = mutableListOf<Wire.Envelope>()
         val ids = mutableListOf<Long>()

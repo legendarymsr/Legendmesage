@@ -67,6 +67,7 @@ class PeerServer(
                     Wire.OP_DIRECT -> inbound.deliver(Wire.readEnvelope(input))
                     Wire.OP_DEPOSIT -> handleDeposit(input)
                     Wire.OP_COLLECT -> handleCollect(it, input)
+                    Wire.OP_SUBSCRIBE -> handleSubscribe(it, input)
                     else -> Log.w(TAG, "unknown opcode")
                 }
             } catch (e: Exception) {
@@ -79,7 +80,47 @@ class PeerServer(
         if (!identity.mailboxEnabled) return
         val recipientId = Wire.readFrame(input)
         val envelope = Wire.readEnvelope(input)
-        mailbox.deposit(hex(recipientId), envelope)
+        val recipientHex = hex(recipientId)
+        if (mailbox.deposit(recipientHex, envelope)) {
+            // Wake a connected subscriber so it is pushed promptly.
+            MailboxNotifier.signal(recipientHex)
+        }
+    }
+
+    /**
+     * A long-lived, authenticated subscription. After the same signed-challenge
+     * check as COLLECT, the server sends the recipient's backlog and then holds
+     * the connection open, pushing new deposits as they arrive (with periodic
+     * keepalives), so the client does not rebuild Tor circuits every couple of
+     * minutes just to check for mail.
+     */
+    private fun handleSubscribe(socket: Socket, input: java.io.DataInputStream) {
+        if (!identity.mailboxEnabled) return
+        val recipientId = Wire.readFrame(input)
+        val output = Wire.output(socket.getOutputStream())
+
+        val challenge = ByteArray(32).also { random.nextBytes(it) }
+        Wire.writeFrame(output, challenge)
+        output.flush()
+        val signature = Wire.readFrame(input)
+        val trusted = try {
+            ECPublicKey(recipientId).verifySignature(challenge, signature)
+        } catch (e: Exception) {
+            false
+        }
+        if (!trusted) return
+
+        socket.soTimeout = 0 // we only write after auth; block on the notifier, not a read
+        val recipientHex = hex(recipientId)
+        while (!Thread.currentThread().isInterrupted && !socket.isClosed) {
+            val backlog = mailbox.collectAndDelete(recipientHex)
+            if (backlog.isEmpty()) {
+                Wire.writeStreamKeepalive(output) // also surfaces a dead socket
+            } else {
+                backlog.forEach { Wire.writeStreamEnvelope(output, it) }
+            }
+            MailboxNotifier.await(recipientHex, KEEPALIVE_MS)
+        }
     }
 
     private fun handleCollect(socket: Socket, input: java.io.DataInputStream) {
@@ -115,5 +156,6 @@ class PeerServer(
 
     companion object {
         private const val TAG = "PeerServer"
+        private const val KEEPALIVE_MS = 90_000L
     }
 }
