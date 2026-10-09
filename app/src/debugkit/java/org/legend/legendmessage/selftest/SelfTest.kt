@@ -51,7 +51,8 @@ class SelfTest(private val context: Context) {
 
     /** Runs the test, streaming log lines; returns true if every check passed. */
     fun run(log: (String) -> Unit): Boolean {
-        val runId = System.currentTimeMillis().toString()
+        // Unique, underscore-free id so run-scoped cleanup can never touch another run.
+        val runId = java.util.UUID.randomUUID().toString().replace("-", "")
         var ok = true
         val peers = mutableListOf<Peer>()
 
@@ -63,7 +64,7 @@ class SelfTest(private val context: Context) {
         try {
             log("LegendMsg Debug v${org.legend.legendmessage.BuildConfig.VERSION_NAME} — self-test")
             log("")
-            sweepOldRuns()
+            deleteSelftest { !it.contains("_${runId}_") } // purge other runs, keep this one
             val alice = makePeer(runId, "a", "Alice")
             val bob = makePeer(runId, "b", "Bob")
             val box = makePeer(runId, "c", "Mailbox")
@@ -129,6 +130,7 @@ class SelfTest(private val context: Context) {
             // --- Streaming mailbox (OP_SUBSCRIBE) over a real loopback socket ---
             log("")
             log("Testing the streaming mailbox over a loopback socket…")
+            check("Bob's identity is intact before streaming", bob.identity.exists())
             val server = ServerSocket().apply { bind(InetSocketAddress("127.0.0.1", 0)) }
             val port = server.localPort
             val accept = Thread {
@@ -167,6 +169,9 @@ class SelfTest(private val context: Context) {
                 check("Stream: pushed message decrypted",
                     bob.messages.history(alice.hexStr).any { it.body == pushText })
                 sub.interrupt()
+            } catch (e: Exception) {
+                ok = false
+                log("✗ Stream test error: ${e.javaClass.simpleName}: ${e.message}")
             } finally {
                 runCatching { server.close() }
                 accept.interrupt()
@@ -192,7 +197,7 @@ class SelfTest(private val context: Context) {
             log(e.stackTrace.take(6).joinToString("\n") { "   at $it" })
         } finally {
             peers.forEach { runCatching { it.db.close() } }
-            sweepOldRuns()
+            deleteSelftest { it.contains("_${runId}_") } // only this run's storage
         }
         return ok
     }
@@ -312,17 +317,21 @@ class SelfTest(private val context: Context) {
         return Peer(name, idBytes, CryptoEngine.hexOf(idBytes), identity, contacts, crypto, messages, mailbox, inbound, db)
     }
 
-    /** Best-effort delete of any leftover self-test storage from previous runs. */
-    private fun sweepOldRuns() {
+    /**
+     * Delete self-test storage whose directory/db name matches [predicate].
+     * Run-scoped so a concurrent or late-finishing run can never wipe another
+     * run's in-progress files.
+     */
+    private fun deleteSelftest(predicate: (String) -> Boolean) {
         runCatching {
             (context.filesDir.listFiles() ?: emptyArray())
-                .filter { it.name.startsWith("selftest_") }
+                .filter { it.name.startsWith("selftest_") && predicate(it.name) }
                 .forEach { it.deleteRecursively() }
         }
         runCatching {
             val dbDir = context.getDatabasePath("x").parentFile
             (dbDir?.listFiles() ?: emptyArray())
-                .filter { it.name.startsWith("selftest_") }
+                .filter { it.name.startsWith("selftest_") && predicate(it.name) }
                 .forEach { it.delete() }
         }
     }
