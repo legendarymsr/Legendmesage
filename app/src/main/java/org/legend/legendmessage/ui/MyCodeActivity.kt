@@ -35,10 +35,12 @@ class MyCodeActivity : AppCompatActivity() {
             ByteArray(0)
         }
         val card = services.crypto.myCard(onion, clientAuthPub)
-        // Render the QR near screen-width so the (necessarily dense) code has
-        // large enough modules to scan.
+        // Render the QR from the base45 form: it encodes in QR alphanumeric mode
+        // so it stays compact AND round-trips through the scanner reliably. A
+        // binary byte-mode QR does not — the scanner guesses a charset and the
+        // card's high bytes (e.g. the Kyber key) get corrupted on the way back.
         val sizePx = (resources.displayMetrics.widthPixels * 0.92f).toInt().coerceIn(480, 1440)
-        binding.qrImage.setImageBitmap(Qr.encodeBytes(card.encodeBinary(), sizePx))
+        binding.qrImage.setImageBitmap(Qr.encode(card.encodeQr(), sizePx))
 
         binding.shareButton.setOnClickListener {
             val share = Intent(Intent.ACTION_SEND).apply {

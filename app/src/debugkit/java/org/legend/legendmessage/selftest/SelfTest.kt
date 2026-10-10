@@ -13,6 +13,7 @@ import org.legend.legendmessage.crypto.ClientAuthKeys
 import org.legend.legendmessage.net.InboundDelivery
 import org.legend.legendmessage.net.MailboxProtocol
 import org.legend.legendmessage.net.Wire
+import org.legend.legendmessage.pairing.Base45
 import org.legend.legendmessage.pairing.ContactCard
 import org.legend.legendmessage.tor.Base32
 import org.signal.libsignal.protocol.ecc.ECPublicKey
@@ -189,8 +190,19 @@ class SelfTest(private val context: Context) {
 
             // --- Tor onion client-authorization building blocks (no Tor needed) ---
             log("")
-            log("Testing onion client-auth building blocks…")
+            log("Testing pairing + onion-auth building blocks…")
             check("Base32 RFC 4648 vector", Base32.encode("foobar".toByteArray()) == "MZXW6YTBOI")
+
+            // base45 (RFC 9285) backs the scannable QR; verify spec vectors + a
+            // full-card round-trip through the QR text form.
+            check("Base45 vector AB", Base45.encode("AB".toByteArray()) == "BB8")
+            check("Base45 vector ietf!", Base45.encode("ietf!".toByteArray()) == "QED8WEX0")
+            check("Base45 round-trips binary", run {
+                val blob = ByteArray(300) { (it * 7).toByte() }
+                Base45.decode(Base45.encode(blob)).contentEquals(blob)
+            })
+            val qrCard = alice.crypto.myCard("alice.onion")
+            check("QR card round-trips (base45)", ContactCard.decode(qrCard.encodeQr()) == qrCard)
 
             val caStore = SecretStore(context, "selftest_${runId}_ca")
             val ca = ClientAuthKeys(caStore)
