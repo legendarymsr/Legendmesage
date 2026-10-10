@@ -88,6 +88,22 @@
     <string name="mailbox_this_device_label">This device\'s address (use it as a mailbox on your other device):</string>
     <string name="mailbox_this_device_pending">Not available yet — wait for Tor to come online.</string>
 
+    <!-- Security section + verification -->
+    <string name="settings_security_title">Security</string>
+    <string name="settings_verified_only_label">Verified-only sending</string>
+    <string name="settings_verified_only_blurb">Refuse to send messages to a contact until you have compared and confirmed their safety number.</string>
+    <string name="chat_unverified_banner">⚠ Unverified — tap to compare the safety number and verify this contact.</string>
+    <string name="chat_safety_is_verified">✓ You have marked this contact verified.</string>
+    <string name="chat_safety_not_verified">Not yet verified. Compare these digits with %1$s over a trusted channel, then mark verified.</string>
+    <string name="chat_safety_mark_verified">Mark verified</string>
+    <string name="chat_safety_clear">Clear verification</string>
+    <string name="chat_verify_required_title">Contact not verified</string>
+    <string name="chat_verify_required_body">Verified-only sending is on. Compare %1$s\'s safety number and mark them verified before messaging.</string>
+    <string name="chat_verify_now">Verify now</string>
+    <string name="pair_namecollision_title">Name already in use</string>
+    <string name="pair_namecollision_body">You already have a contact named \"%1$s\" with a different key. This could be an innocent name clash — or someone impersonating them. Only add if you trust this code.</string>
+    <string name="pair_namecollision_add">Add anyway</string>
+
     <!-- Danger zone / panic wipe -->
     <string name="settings_danger_title">Danger zone</string>
     <string name="settings_wipe_blurb">Permanently erase this device\'s identity, keys, contacts, and all message history. There is no undo and no server copy. Use this if the device may fall into the wrong hands.</string>

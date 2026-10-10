@@ -157,6 +157,26 @@ class HomeActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.scan_not_a_card, Toast.LENGTH_LONG).show()
             return
         }
+        // Warn if we already know someone by this name with a *different* key:
+        // either an innocent name clash or an impersonation attempt. The user
+        // decides whether to proceed.
+        val incomingHex = org.legend.legendmessage.crypto.CryptoEngine.hexOf(card.identityKey)
+        val nameClash = App.services().contacts.all().firstOrNull {
+            it.displayName.equals(card.displayName, ignoreCase = true) && it.identityHex != incomingHex
+        }
+        if (nameClash != null) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.pair_namecollision_title)
+                .setMessage(getString(R.string.pair_namecollision_body, card.displayName))
+                .setPositiveButton(R.string.pair_namecollision_add) { _, _ -> commitContact(card) }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        commitContact(card)
+    }
+
+    private fun commitContact(card: ContactCard) {
         try {
             val contact = App.services().crypto.addContact(card)
             refresh()

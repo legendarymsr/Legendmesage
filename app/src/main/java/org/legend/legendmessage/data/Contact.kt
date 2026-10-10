@@ -12,4 +12,10 @@ data class Contact(
     val mailboxAddress: String,
     val registrationId: Int,
     val addedAt: Long,
+    /**
+     * True once the user has compared the safety number out-of-band and marked
+     * this contact verified. Until then the chat shows an "unverified" banner,
+     * and verified-only send mode (if enabled) refuses to message them.
+     */
+    val verified: Boolean = false,
 )

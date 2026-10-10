@@ -56,6 +56,13 @@ class IdentityManager(
             prefs.edit().putBoolean(PREF_MAILBOX_MODE, value).apply()
         }
 
+    /** When on, the chat refuses to send to a contact whose safety number hasn't been verified. */
+    var verifiedOnlySend: Boolean
+        get() = prefs.getBoolean(PREF_VERIFIED_ONLY, false)
+        set(value) {
+            prefs.edit().putBoolean(PREF_VERIFIED_ONLY, value).apply()
+        }
+
     /** Generate and persist a fresh identity. Safe to call only when [exists] is false. */
     fun create(displayName: String): IdentityKeyPair {
         val keyPair = IdentityKeyPair.generate()
@@ -94,6 +101,7 @@ class IdentityManager(
         private const val PREF_ONION = "onion_address"
         private const val PREF_MAILBOX = "mailbox_address"
         private const val PREF_MAILBOX_MODE = "mailbox_mode"
+        private const val PREF_VERIFIED_ONLY = "verified_only_send"
 
         fun fingerprintOf(identityKey: IdentityKey): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(identityKey.serialize())

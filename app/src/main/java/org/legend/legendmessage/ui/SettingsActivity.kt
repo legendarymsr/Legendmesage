@@ -53,6 +53,11 @@ class SettingsActivity : AppCompatActivity() {
             identity.mailboxEnabled = checked
         }
 
+        binding.verifiedOnlyCheck.isChecked = identity.verifiedOnlySend
+        binding.verifiedOnlyCheck.setOnCheckedChangeListener { _, checked ->
+            identity.verifiedOnlySend = checked
+        }
+
         binding.panicWipeButton.setOnClickListener { confirmPanicWipe() }
     }
 
