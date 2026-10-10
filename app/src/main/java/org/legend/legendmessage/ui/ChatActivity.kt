@@ -41,6 +41,7 @@ class ChatActivity : AppCompatActivity() {
         peerName = intent.getStringExtra(EXTRA_PEER_NAME).orEmpty()
         binding.chatTitle.text = getString(R.string.chat_title_verify, peerName)
         binding.chatTitle.setOnClickListener { showSafetyNumber() }
+        binding.chatTitle.setOnLongClickListener { showDisappearingPicker(); true }
         binding.verifyBanner.setOnClickListener { showSafetyNumber() }
 
         adapter = MessageAdapter(emptyList())
@@ -112,12 +113,31 @@ class ChatActivity : AppCompatActivity() {
 
     private fun reload() {
         loadExecutor.execute {
+            // Apply the disappearing-messages policy before loading history.
+            val ttl = App.services().contacts.get(peerHex)?.disappearingSeconds ?: 0
+            App.services().messages.expireOld(peerHex, ttl)
             val history = App.services().messages.history(peerHex)
             runOnUiThread {
                 adapter.submit(history)
                 if (history.isNotEmpty()) binding.messagesList.scrollToPosition(history.size - 1)
             }
         }
+    }
+
+    private fun showDisappearingPicker() {
+        val labels = resources.getStringArray(R.array.disappearing_labels)
+        val values = resources.getIntArray(R.array.disappearing_values)
+        val current = App.services().contacts.get(peerHex)?.disappearingSeconds ?: 0
+        val checked = values.indexOf(current).let { if (it >= 0) it else 0 }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.chat_disappearing_title)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                App.services().contacts.setDisappearing(peerHex, values[which])
+                reload()
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     companion object {

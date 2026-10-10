@@ -18,4 +18,10 @@ data class Contact(
      * and verified-only send mode (if enabled) refuses to message them.
      */
     val verified: Boolean = false,
+    /**
+     * Disappearing-messages timer for this conversation, in seconds. 0 = off.
+     * Messages older than this (by send/receive time) are deleted from local
+     * history. It is a local retention policy, not enforced on the peer.
+     */
+    val disappearingSeconds: Int = 0,
 )

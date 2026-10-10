@@ -81,8 +81,21 @@ class HomeActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refresh()
+        sweepDisappearing()
         TorState.addListener(torListener)
         App.services().sender.flush()
+    }
+
+    /** Apply every conversation's disappearing-messages policy, even unopened ones. */
+    private fun sweepDisappearing() {
+        val services = App.services()
+        Thread {
+            runCatching {
+                services.contacts.all().forEach { c ->
+                    if (c.disappearingSeconds > 0) services.messages.expireOld(c.identityHex, c.disappearingSeconds)
+                }
+            }
+        }.start()
     }
 
     override fun onPause() {
