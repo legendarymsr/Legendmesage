@@ -22,6 +22,12 @@ class MessageSender(
 ) {
     private val executor = Executors.newSingleThreadExecutor()
 
+    // First messages to a brand-new contact whose Kyber prekey we don't have
+    // yet: held in memory (never written to disk as plaintext) until we fetch
+    // their prekey over Tor and can establish the session. Only touched on the
+    // single-threaded [executor], so no extra synchronization is needed.
+    private val preSession = HashMap<String, MutableList<String>>()
+
     /** Human-readable summary of the last delivery attempt, for the Diagnostics screen. */
     @Volatile
     var lastStatus: String = "idle"
@@ -29,19 +35,70 @@ class MessageSender(
 
     fun send(peerHex: String, text: String) {
         executor.execute {
-            try {
-                val encrypted = crypto.encrypt(peerHex, text.toByteArray(Charsets.UTF_8))
-                messages.insertOutgoing(peerHex, text, encrypted.type, encrypted.body)
-                MessageBus.notifyChanged(peerHex)
-            } catch (e: Exception) {
-                Log.w(TAG, "encrypt/enqueue failed: ${e.message}")
+            if (crypto.cardNeedsKyber(peerHex)) {
+                // We paired but don't have their post-quantum prekey yet; hold
+                // the message and go fetch it over Tor.
+                preSession.getOrPut(peerHex) { mutableListOf() }.add(text)
+                establish(peerHex)
+                return@execute
             }
+            encryptAndQueue(peerHex, text)
             deliverPending()
         }
     }
 
     fun flush() {
-        executor.execute { deliverPending() }
+        executor.execute {
+            preSession.keys.toList().forEach { establish(it) }
+            deliverPending()
+        }
+    }
+
+    /**
+     * Proactively fetch prekeys for freshly paired contacts (so the first send
+     * is instant) and flush any first messages held while offline.
+     */
+    fun healContacts() {
+        executor.execute {
+            if (TorState.status != TorState.Status.ON) return@execute
+            contacts.all().forEach { c ->
+                if (crypto.cardNeedsKyber(c.identityHex) && c.onionAddress.isNotBlank()) {
+                    runCatching { PreKeyClient.fetchKyber(c.onionAddress) }
+                        .getOrNull()?.let { crypto.attachKyber(c.identityHex, it) }
+                }
+            }
+            preSession.keys.toList().forEach { establish(it) }
+        }
+    }
+
+    private fun encryptAndQueue(peerHex: String, text: String) {
+        try {
+            val encrypted = crypto.encrypt(peerHex, text.toByteArray(Charsets.UTF_8))
+            messages.insertOutgoing(peerHex, text, encrypted.type, encrypted.body)
+            MessageBus.notifyChanged(peerHex)
+        } catch (e: Exception) {
+            Log.w(TAG, "encrypt/enqueue failed: ${e.message}")
+        }
+    }
+
+    /** Fetch a new contact's Kyber prekey over Tor, then flush any messages held for them. */
+    private fun establish(peerHex: String) {
+        if (crypto.cardNeedsKyber(peerHex)) {
+            if (TorState.status != TorState.Status.ON) {
+                lastStatus = "Waiting for Tor to set up encryption"
+                return
+            }
+            val contact = contacts.get(peerHex) ?: return
+            val bundle = runCatching { PreKeyClient.fetchKyber(contact.onionAddress) }.getOrNull()
+            if (bundle == null) {
+                lastStatus = "Couldn't reach ${contact.displayName} to set up encryption — retry when they're online"
+                return
+            }
+            crypto.attachKyber(peerHex, bundle)
+        }
+        val held = preSession.remove(peerHex) ?: return
+        held.forEach { encryptAndQueue(peerHex, it) }
+        deliverPending()
     }
 
     private fun deliverPending() {
