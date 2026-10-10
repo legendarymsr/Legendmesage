@@ -24,6 +24,7 @@ class ContactStore(private val store: SecretStore) {
                 mailboxAddress = o.optString("mailbox", ""),
                 registrationId = o.optInt("reg", 0),
                 addedAt = o.optLong("at", 0L),
+                verified = o.optBoolean("verified", false),
             )
         }
     }
@@ -34,6 +35,11 @@ class ContactStore(private val store: SecretStore) {
     fun upsert(contact: Contact) {
         val current = all().filter { it.identityHex != contact.identityHex } + contact
         persist(current)
+    }
+
+    @Synchronized
+    fun setVerified(identityHex: String, verified: Boolean) {
+        persist(all().map { if (it.identityHex == identityHex) it.copy(verified = verified) else it })
     }
 
     @Synchronized
@@ -51,7 +57,8 @@ class ContactStore(private val store: SecretStore) {
                     .put("onion", c.onionAddress)
                     .put("mailbox", c.mailboxAddress)
                     .put("reg", c.registrationId)
-                    .put("at", c.addedAt),
+                    .put("at", c.addedAt)
+                    .put("verified", c.verified),
             )
         }
         store.put(key, array.toString().toByteArray(Charsets.UTF_8))

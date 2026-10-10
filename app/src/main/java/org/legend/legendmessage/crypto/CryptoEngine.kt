@@ -97,13 +97,18 @@ class CryptoEngine(
         val hex = hexOf(card.identityKey)
         store.rawPut("card_$hex", card.encode().toByteArray(Charsets.UTF_8))
 
+        // Re-pairing with the same identity key (same hex) keeps a prior
+        // verification — the safety number is derived from the keys, which are
+        // unchanged. A different key is a different hex, hence a new contact.
+        val existing = contacts.get(hex)
         val contact = Contact(
             identityHex = hex,
             displayName = card.displayName.ifBlank { "Unknown" },
             onionAddress = card.onionAddress,
             mailboxAddress = card.mailboxAddress,
             registrationId = card.registrationId,
-            addedAt = System.currentTimeMillis(),
+            addedAt = existing?.addedAt ?: System.currentTimeMillis(),
+            verified = existing?.verified ?: false,
         )
         contacts.upsert(contact)
         contact

@@ -1,6 +1,7 @@
 package org.legend.legendmessage.ui
 
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -14,11 +15,17 @@ import java.util.concurrent.Executors
  * One conversation. Shows the (locally decrypted) history and sends new
  * messages through [org.legend.legendmessage.net.MessageSender], which
  * encrypts, queues, and delivers over Tor.
+ *
+ * Verification: tapping the title opens the safety number, where the user can
+ * mark the contact verified after comparing it out-of-band. Until then an
+ * "unverified" banner shows, and — if verified-only send is on — sending is
+ * blocked until verification.
  */
 class ChatActivity : AppCompatActivity() {
     private lateinit var binding: ActivityChatBinding
     private lateinit var adapter: MessageAdapter
     private lateinit var peerHex: String
+    private lateinit var peerName: String
 
     private val loadExecutor = Executors.newSingleThreadExecutor()
     private val busListener: (String) -> Unit = { changed ->
@@ -31,27 +38,23 @@ class ChatActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         peerHex = intent.getStringExtra(EXTRA_PEER_HEX).orEmpty()
-        val peerName = intent.getStringExtra(EXTRA_PEER_NAME).orEmpty()
+        peerName = intent.getStringExtra(EXTRA_PEER_NAME).orEmpty()
         binding.chatTitle.text = getString(R.string.chat_title_verify, peerName)
-        binding.chatTitle.setOnClickListener { showSafetyNumber(peerName) }
+        binding.chatTitle.setOnClickListener { showSafetyNumber() }
+        binding.verifyBanner.setOnClickListener { showSafetyNumber() }
 
         adapter = MessageAdapter(emptyList())
         binding.messagesList.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         binding.messagesList.adapter = adapter
 
-        binding.sendButton.setOnClickListener {
-            val text = binding.input.text?.toString()?.trim().orEmpty()
-            if (text.isNotEmpty()) {
-                App.services().sender.send(peerHex, text)
-                binding.input.text?.clear()
-            }
-        }
+        binding.sendButton.setOnClickListener { trySend() }
     }
 
     override fun onResume() {
         super.onResume()
         MessageBus.addListener(busListener)
         App.services().sender.flush()
+        renderVerifyState()
         reload()
     }
 
@@ -60,14 +63,51 @@ class ChatActivity : AppCompatActivity() {
         MessageBus.removeListener(busListener)
     }
 
-    private fun showSafetyNumber(peerName: String) {
+    private fun isVerified(): Boolean = App.services().contacts.get(peerHex)?.verified == true
+
+    private fun renderVerifyState() {
+        binding.verifyBanner.visibility = if (isVerified()) View.GONE else View.VISIBLE
+    }
+
+    private fun trySend() {
+        val text = binding.input.text?.toString()?.trim().orEmpty()
+        if (text.isEmpty()) return
+        if (App.services().identity.verifiedOnlySend && !isVerified()) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.chat_verify_required_title)
+                .setMessage(getString(R.string.chat_verify_required_body, peerName))
+                .setPositiveButton(R.string.chat_verify_now) { _, _ -> showSafetyNumber() }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            return
+        }
+        App.services().sender.send(peerHex, text)
+        binding.input.text?.clear()
+    }
+
+    private fun showSafetyNumber() {
         val number = App.services().crypto.safetyNumber(peerHex)
             ?: getString(R.string.chat_safety_unavailable)
-        AlertDialog.Builder(this)
+        val verified = isVerified()
+        val builder = AlertDialog.Builder(this)
             .setTitle(getString(R.string.chat_safety_title, peerName))
-            .setMessage(getString(R.string.chat_safety_body, number))
+            .setMessage(
+                getString(R.string.chat_safety_body, number) + "\n\n" +
+                    getString(if (verified) R.string.chat_safety_is_verified else R.string.chat_safety_not_verified),
+            )
             .setPositiveButton(android.R.string.ok, null)
-            .show()
+        if (verified) {
+            builder.setNeutralButton(R.string.chat_safety_clear) { _, _ ->
+                App.services().contacts.setVerified(peerHex, false)
+                renderVerifyState()
+            }
+        } else {
+            builder.setNeutralButton(R.string.chat_safety_mark_verified) { _, _ ->
+                App.services().contacts.setVerified(peerHex, true)
+                renderVerifyState()
+            }
+        }
+        builder.show()
     }
 
     private fun reload() {

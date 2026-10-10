@@ -4,6 +4,7 @@ import android.util.Log
 import org.legend.legendmessage.crypto.CryptoEngine
 import org.legend.legendmessage.data.ContactStore
 import org.legend.legendmessage.data.MessageStore
+import org.signal.libsignal.protocol.UntrustedIdentityException
 
 /**
  * Shared "a ciphertext arrived for me" path, used both by direct delivery
@@ -27,6 +28,12 @@ class InboundDelivery(
             messages.insertIncoming(senderHex, String(plaintext, Charsets.UTF_8))
             MessageBus.notifyChanged(senderHex)
             true
+        } catch (e: UntrustedIdentityException) {
+            // The sender's claimed identity key does not match the one pinned
+            // for this contact: a possible machine-in-the-middle. Drop it loudly
+            // rather than silently accepting a changed key.
+            Log.e(TAG, "SECURITY: identity key mismatch for $senderHex — message rejected", e)
+            false
         } catch (e: Exception) {
             Log.w(TAG, "failed to decrypt/store from $senderHex: ${e.message}")
             false
