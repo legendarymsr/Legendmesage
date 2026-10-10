@@ -163,7 +163,10 @@ class HomeActivity : AppCompatActivity() {
         val card = try {
             decodeCard(text)
         } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.pair_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+            // A LegendMessage code was recognised but didn't parse: either the
+            // camera misread a dense QR, or the other phone is on an older build
+            // whose code this version can't read. Both are worth saying.
+            Toast.makeText(this, R.string.scan_misread, Toast.LENGTH_LONG).show()
             return
         }
         if (card == null) {
