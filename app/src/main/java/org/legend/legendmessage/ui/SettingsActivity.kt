@@ -58,7 +58,62 @@ class SettingsActivity : AppCompatActivity() {
             identity.verifiedOnlySend = checked
         }
 
+        renderLockState()
+        binding.appLockButton.setOnClickListener { setOrChangePin() }
+        binding.removeLockButton.setOnClickListener { removeLock() }
+        binding.biometricCheck.setOnCheckedChangeListener { _, checked ->
+            App.services().lock.biometricEnabled = checked
+        }
+
         binding.panicWipeButton.setOnClickListener { confirmPanicWipe() }
+    }
+
+    private fun renderLockState() {
+        val lock = App.services().lock
+        val set = lock.hasPin()
+        binding.appLockButton.setText(if (set) R.string.settings_lock_change else R.string.settings_lock_setup)
+        binding.removeLockButton.visibility = if (set) android.view.View.VISIBLE else android.view.View.GONE
+        binding.biometricCheck.visibility = if (set) android.view.View.VISIBLE else android.view.View.GONE
+        binding.biometricCheck.isChecked = set && lock.biometricEnabled
+    }
+
+    private fun setOrChangePin() {
+        val input = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+            hint = getString(R.string.settings_lock_pin_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_lock_setup)
+            .setMessage(R.string.settings_lock_pin_body)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val pin = input.text?.toString().orEmpty()
+                if (pin.length < 4) {
+                    toast(getString(R.string.settings_lock_pin_short))
+                } else {
+                    val chars = pin.toCharArray()
+                    App.services().lock.setPin(chars)
+                    chars.fill('\u0000')
+                    renderLockState()
+                    toast(getString(R.string.settings_lock_set))
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun removeLock() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_lock_remove)
+            .setMessage(R.string.settings_lock_remove_body)
+            .setPositiveButton(R.string.settings_lock_remove) { _, _ ->
+                App.services().lock.clear()
+                renderLockState()
+                toast(getString(R.string.settings_lock_removed))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     /**

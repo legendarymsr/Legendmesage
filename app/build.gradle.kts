@@ -100,6 +100,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    // App lock: biometric prompt with device-credential fallback.
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Signal protocol: X3DH/PQXDH + Double Ratchet. NOTE: AGPL-3.0-licensed.
     implementation("org.signal:libsignal-android:0.76.1")

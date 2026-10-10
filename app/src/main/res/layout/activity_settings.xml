@@ -153,6 +153,38 @@
             android:textColor="@color/tn_dim"
             android:textSize="12sp" />
 
+        <Button
+            android:id="@+id/appLockButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/settings_lock_setup" />
+
+        <CheckBox
+            android:id="@+id/biometricCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_lock_biometric"
+            android:textColor="@color/tn_fg"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/removeLockButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_lock_remove"
+            android:visibility="gone" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_lock_blurb"
+            android:textColor="@color/tn_dim"
+            android:textSize="12sp" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
