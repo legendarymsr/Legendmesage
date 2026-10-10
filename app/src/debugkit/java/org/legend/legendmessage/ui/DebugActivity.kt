@@ -1,128 +1,126 @@
 package org.legend.legendmessage.ui
 
 import android.app.ActivityManager
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
-import android.widget.Toast
+import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import org.legend.legendmessage.BuildConfig
-import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
 import org.legend.legendmessage.databinding.ActivityDebugBinding
+import org.legend.legendmessage.selftest.SelfTest
 import org.legend.legendmessage.tor.TorForegroundService
 import org.legend.legendmessage.tor.TorState
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
- * One place for all the test/debug tools: the two-device self-test, live
- * transport diagnostics, the last crash, plus a few handy utilities.
+ * The whole debug app: one black terminal screen. It prints a short status
+ * header (and the last crash, if any), runs the on-device two-device
+ * self-test streaming into the same console, and offers restart-Tor and wipe.
+ * Nothing else — it is only ever used for testing.
  */
 class DebugActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDebugBinding
+    private val io = Executors.newSingleThreadExecutor()
+    private val buffer = StringBuilder()
+    @Volatile private var running = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityDebugBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.selfTestButton.setOnClickListener {
-            startActivity(Intent(this, SelfTestActivity::class.java))
-        }
-        binding.diagnosticsButton.setOnClickListener {
-            startActivity(Intent(this, DiagnosticsActivity::class.java))
-        }
-        binding.crashButton.setOnClickListener { showLastCrash() }
-        binding.copyOnionButton.setOnClickListener { copyOnion() }
+        binding.runButton.setOnClickListener { runSelfTest() }
         binding.restartTorButton.setOnClickListener { restartTor() }
-        binding.resetButton.setOnClickListener { confirmReset() }
+        binding.wipeButton.setOnClickListener { confirmWipe() }
+
+        printHeader()
     }
 
-    override fun onResume() {
-        super.onResume()
-        binding.debugInfo.text = info()
+    private fun printHeader() {
+        buffer.setLength(0)
+        buffer.append(header())
+        val crash = File(filesDir, "last_crash.txt")
+        if (crash.exists()) buffer.append("\n\n--- last crash ---\n").append(crash.readText())
+        render()
     }
 
-    private fun info(): String {
+    private fun header(): String {
         val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val mem = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
         val stat = StatFs(Environment.getDataDirectory().path)
         val mb = 1024L * 1024L
-        val identity = App.services().identity
+        val onion = App.services().identity.onionAddress.ifBlank { "(not published)" }
         return buildString {
-            appendLine("Version:  ${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE})")
-            appendLine("RAM:      ${mem.availMem / mb}MB free / ${mem.totalMem / mb}MB total")
-            appendLine("Storage:  ${stat.availableBytes / mb}MB free / ${stat.totalBytes / mb}MB total")
-            appendLine("Tor:      ${TorState.status}  (SOCKS ${TorState.socksPort})")
-            append("Onion:    ${identity.onionAddress.ifBlank { "(not published)" }}")
+            appendLine("LegendMsg Debug ${BuildConfig.VERSION_NAME}")
+            appendLine("RAM     ${mem.availMem / mb}/${mem.totalMem / mb} MB free")
+            appendLine("Storage ${stat.availableBytes / mb}/${stat.totalBytes / mb} MB free")
+            appendLine("Tor     ${TorState.status}  SOCKS ${TorState.socksPort}")
+            append("Onion   $onion")
         }
     }
 
-    private fun showLastCrash() {
-        val crash = File(filesDir, "last_crash.txt")
-        val text = if (crash.exists()) crash.readText() else getString(R.string.debug_no_crash)
-        AlertDialog.Builder(this)
-            .setTitle(R.string.debug_crash)
-            .setMessage(text)
-            .setPositiveButton(android.R.string.ok, null)
-            .setNeutralButton(R.string.debug_copy) { _, _ -> copy("crash", text) }
-            .show()
-    }
-
-    private fun copyOnion() {
-        val onion = App.services().identity.onionAddress
-        if (onion.isBlank()) {
-            Toast.makeText(this, R.string.debug_no_onion, Toast.LENGTH_SHORT).show()
-        } else {
-            copy("onion", onion)
+    private fun runSelfTest() {
+        if (running) return
+        running = true
+        binding.runButton.isEnabled = false
+        buffer.setLength(0)
+        render()
+        io.execute {
+            SelfTest(applicationContext).run { line -> appendLine(line) }
+            runOnUiThread {
+                running = false
+                binding.runButton.isEnabled = true
+            }
         }
     }
 
-    private fun copy(label: String, text: String) {
-        getSystemService(ClipboardManager::class.java)
-            ?.setPrimaryClip(ClipData.newPlainText(label, text))
-        Toast.makeText(this, R.string.debug_copied, Toast.LENGTH_SHORT).show()
+    private fun appendLine(line: String) = runOnUiThread {
+        buffer.append(line).append('\n')
+        render()
+    }
+
+    private fun render() {
+        binding.console.text = buffer
+        binding.scroll.post { binding.scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
     private fun restartTor() {
         TorForegroundService.stop(this)
         TorForegroundService.start(this)
-        Toast.makeText(this, R.string.debug_tor_restarting, Toast.LENGTH_SHORT).show()
+        appendLine("\n[restarting Tor…]")
     }
 
-    private fun confirmReset() {
+    private fun confirmWipe() {
         AlertDialog.Builder(this)
-            .setTitle(R.string.debug_reset_title)
-            .setMessage(R.string.debug_reset_body)
-            .setPositiveButton(R.string.debug_reset) { _, _ -> doReset() }
+            .setTitle(org.legend.legendmessage.R.string.debug_reset_title)
+            .setMessage(org.legend.legendmessage.R.string.debug_reset_body)
+            .setPositiveButton(org.legend.legendmessage.R.string.debug_reset) { _, _ -> doWipe() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
-    private fun doReset() {
+    private fun doWipe() {
         TorForegroundService.stop(this)
-        // Wipe all identity, keys, contacts, and message history.
         runCatching { File(filesDir, "secretstore").deleteRecursively() }
         runCatching {
-            (context().filesDir.listFiles() ?: emptyArray())
+            (filesDir.listFiles() ?: emptyArray())
                 .filter { it.name.startsWith("selftest_") }
                 .forEach { it.deleteRecursively() }
         }
         runCatching { getDatabasePath("messages.db").parentFile?.listFiles()?.forEach { it.delete() } }
         runCatching { getSharedPreferences("identity", MODE_PRIVATE).edit().clear().apply() }
-
-        // Relaunch the debug hub (the debug app stays in debugging, not the messenger).
-        val intent = Intent(this, DebugActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        startActivity(intent)
+        // Relaunch the debug console (the debug app stays in debugging).
+        startActivity(
+            Intent(this, DebugActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        )
         finishAffinity()
         Runtime.getRuntime().exit(0)
     }
-
-    private fun context() = applicationContext
 }
