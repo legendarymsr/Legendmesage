@@ -104,6 +104,11 @@
     <string name="pair_namecollision_body">You already have a contact named \"%1$s\" with a different key. This could be an innocent name clash — or someone impersonating them. Only add if you trust this code.</string>
     <string name="pair_namecollision_add">Add anyway</string>
 
+    <!-- Experimental: Tor onion client authorization -->
+    <string name="settings_tor_auth_label">Onion client authorization (experimental)</string>
+    <string name="settings_tor_auth_blurb">Hides your onion service from anyone who hasn\'t been authorized with a key from your contact code. EXPERIMENTAL and untested on-device — leave off unless you can test messaging on two devices.</string>
+    <string name="settings_tor_auth_on_body">Experimental. For this to work, you and your contacts must re-share and re-scan your codes (so client-auth keys are exchanged), then restart Tor. If messaging stops working, turn this back off and restart Tor.</string>
+
     <!-- Disappearing messages -->
     <string name="chat_disappearing_title">Disappearing messages</string>
     <string-array name="disappearing_labels">

@@ -185,6 +185,22 @@
             android:textColor="@color/tn_dim"
             android:textSize="12sp" />
 
+        <CheckBox
+            android:id="@+id/torClientAuthCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/settings_tor_auth_label"
+            android:textColor="@color/tn_fg" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/settings_tor_auth_blurb"
+            android:textColor="@color/tn_yellow"
+            android:textSize="12sp" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

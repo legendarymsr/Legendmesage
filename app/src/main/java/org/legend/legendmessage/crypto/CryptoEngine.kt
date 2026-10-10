@@ -63,8 +63,12 @@ class CryptoEngine(
         }
     }
 
-    /** Build our own contact card, embedding [onionAddress] (may be empty before Tor is up). */
-    fun myCard(onionAddress: String): ContactCard {
+    /**
+     * Build our own contact card, embedding [onionAddress] (may be empty before
+     * Tor is up). [clientAuthPub] is our Tor client-auth public key, included
+     * only when the experimental feature is on (empty otherwise).
+     */
+    fun myCard(onionAddress: String, clientAuthPub: ByteArray = ByteArray(0)): ContactCard {
         ensurePreKeys()
         val signed = store.loadSignedPreKey(signedPreKeyId)
         val kyber = store.loadKyberPreKey(kyberPreKeyId)
@@ -80,7 +84,14 @@ class CryptoEngine(
             kyberPreKeySignature = kyber.signature,
             onionAddress = onionAddress,
             mailboxAddress = identity.mailboxAddress,
+            clientAuthPub = clientAuthPub,
         )
+    }
+
+    /** A paired peer's stored card, or null if we have none. */
+    fun peerCard(identityHex: String): ContactCard? {
+        val cardBytes = store.rawGet("card_$identityHex") ?: return null
+        return runCatching { ContactCard.decode(String(cardBytes, Charsets.UTF_8)) }.getOrNull()
     }
 
     /** Our own identity public key bytes, sent on the wire so a peer can pick the session. */
