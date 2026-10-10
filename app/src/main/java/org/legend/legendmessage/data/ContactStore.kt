@@ -25,6 +25,7 @@ class ContactStore(private val store: SecretStore) {
                 registrationId = o.optInt("reg", 0),
                 addedAt = o.optLong("at", 0L),
                 verified = o.optBoolean("verified", false),
+                disappearingSeconds = o.optInt("disappear", 0),
             )
         }
     }
@@ -43,6 +44,11 @@ class ContactStore(private val store: SecretStore) {
     }
 
     @Synchronized
+    fun setDisappearing(identityHex: String, seconds: Int) {
+        persist(all().map { if (it.identityHex == identityHex) it.copy(disappearingSeconds = seconds) else it })
+    }
+
+    @Synchronized
     fun remove(identityHex: String) {
         persist(all().filter { it.identityHex != identityHex })
     }
@@ -58,7 +64,8 @@ class ContactStore(private val store: SecretStore) {
                     .put("mailbox", c.mailboxAddress)
                     .put("reg", c.registrationId)
                     .put("at", c.addedAt)
-                    .put("verified", c.verified),
+                    .put("verified", c.verified)
+                    .put("disappear", c.disappearingSeconds),
             )
         }
         store.put(key, array.toString().toByteArray(Charsets.UTF_8))

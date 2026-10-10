@@ -66,6 +66,27 @@ class MessageStore(private val db: MessageDb) {
         return list
     }
 
+    /**
+     * Delete delivered messages for [peerHex] older than [ttlSeconds]
+     * (disappearing messages). Pending (undelivered) outgoing messages are kept
+     * so a queued message isn't lost before it is even sent. No-op when ttl<=0.
+     * Returns the number of rows removed.
+     */
+    fun expireOld(peerHex: String, ttlSeconds: Int): Int {
+        if (ttlSeconds <= 0) return 0
+        val cutoff = System.currentTimeMillis() - ttlSeconds * 1000L
+        // Drop any in-memory plaintext for rows about to be deleted.
+        db.database.rawQuery(
+            "SELECT id FROM messages WHERE peer=? AND pending=0 AND ts < ?",
+            arrayOf(peerHex, cutoff.toString()),
+        ).use { c -> while (c.moveToNext()) pendingPlaintext.remove(c.getLong(0)) }
+        return db.database.delete(
+            "messages",
+            "peer=? AND pending=0 AND ts < ?",
+            arrayOf(peerHex, cutoff.toString()),
+        )
+    }
+
     fun history(peerHex: String): List<Message> {
         val list = mutableListOf<Message>()
         db.database.rawQuery(

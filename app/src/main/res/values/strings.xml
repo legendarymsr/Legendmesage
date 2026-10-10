@@ -104,6 +104,23 @@
     <string name="pair_namecollision_body">You already have a contact named \"%1$s\" with a different key. This could be an innocent name clash — or someone impersonating them. Only add if you trust this code.</string>
     <string name="pair_namecollision_add">Add anyway</string>
 
+    <!-- Disappearing messages -->
+    <string name="chat_disappearing_title">Disappearing messages</string>
+    <string-array name="disappearing_labels">
+        <item>Off</item>
+        <item>After 1 minute</item>
+        <item>After 1 hour</item>
+        <item>After 1 day</item>
+        <item>After 1 week</item>
+    </string-array>
+    <integer-array name="disappearing_values">
+        <item>0</item>
+        <item>60</item>
+        <item>3600</item>
+        <item>86400</item>
+        <item>604800</item>
+    </integer-array>
+
     <!-- App lock -->
     <string name="settings_lock_setup">Set up app lock (PIN)</string>
     <string name="settings_lock_change">Change app-lock PIN</string>
