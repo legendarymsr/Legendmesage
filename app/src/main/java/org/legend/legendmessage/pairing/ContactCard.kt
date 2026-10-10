@@ -53,6 +53,13 @@ data class ContactCard(
     fun encode(): String = PREFIX + B64.encode(body())
 
     /**
+     * QR form: base45 so the whole string is QR-alphanumeric, which scans back
+     * reliably (unlike a binary byte-mode QR, whose high bytes get corrupted by
+     * the scanner's charset guessing) while staying compact.
+     */
+    fun encodeQr(): String = QR_PREFIX + Base45.encode(body())
+
+    /**
      * Compact binary form, for the QR. The card carries a ~1.5 KB post-quantum
      * key, so encoding the raw bytes (byte mode) instead of base64 keeps the QR
      * ~25% lower-density — enough fewer modules to actually scan.
@@ -61,17 +68,23 @@ data class ContactCard(
 
     companion object {
         const val PREFIX = "LMC2:"
+        // All chars are in the QR alphanumeric set (uppercase + digits + ':').
+        const val QR_PREFIX = "LMC45:"
         private const val VERSION = 2
         private val MAGIC = byteArrayOf('L'.code.toByte(), 'M'.code.toByte())
 
-        fun looksLikeCard(text: String) = text.startsWith(PREFIX)
+        fun looksLikeCard(text: String) = text.startsWith(PREFIX) || text.startsWith(QR_PREFIX)
 
         fun looksBinary(bytes: ByteArray) =
             bytes.size > MAGIC.size && bytes[0] == MAGIC[0] && bytes[1] == MAGIC[1]
 
         fun decode(text: String): ContactCard {
-            require(text.startsWith(PREFIX)) { "not a LegendMessage contact card" }
-            return parse(CardReader(B64.decode(text.removePrefix(PREFIX))))
+            val t = text.trim()
+            return when {
+                t.startsWith(QR_PREFIX) -> parse(CardReader(Base45.decode(t.removePrefix(QR_PREFIX))))
+                t.startsWith(PREFIX) -> parse(CardReader(B64.decode(t.removePrefix(PREFIX))))
+                else -> throw IllegalArgumentException("not a LegendMessage contact card")
+            }
         }
 
         fun decodeBinary(bytes: ByteArray): ContactCard {
