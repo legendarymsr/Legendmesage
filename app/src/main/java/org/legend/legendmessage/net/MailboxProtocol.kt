@@ -1,6 +1,7 @@
 package org.legend.legendmessage.net
 
 import android.util.Log
+import org.legend.legendmessage.crypto.KyberBundle
 import org.legend.legendmessage.data.MailboxStore
 import org.signal.libsignal.protocol.ecc.ECPublicKey
 import java.io.DataInputStream
@@ -22,8 +23,18 @@ object MailboxProtocol {
 
     private val random = SecureRandom()
 
-    /** Handle one accepted connection to completion (closes [socket]). */
-    fun handle(socket: Socket, inbound: InboundDelivery, mailbox: MailboxStore, mailboxEnabled: Boolean) {
+    /**
+     * Handle one accepted connection to completion (closes [socket]).
+     * [kyberProvider] supplies our Kyber prekey for OP_GET_PREKEY (null in the
+     * self-test, which doesn't exercise that opcode).
+     */
+    fun handle(
+        socket: Socket,
+        inbound: InboundDelivery,
+        mailbox: MailboxStore,
+        mailboxEnabled: Boolean,
+        kyberProvider: () -> KyberBundle? = { null },
+    ) {
         socket.use {
             try {
                 val input = Wire.input(it.getInputStream())
@@ -32,12 +43,18 @@ object MailboxProtocol {
                     Wire.OP_DEPOSIT -> handleDeposit(input, mailbox, mailboxEnabled)
                     Wire.OP_COLLECT -> handleCollect(it, input, mailbox, mailboxEnabled)
                     Wire.OP_SUBSCRIBE -> handleSubscribe(it, input, mailbox, mailboxEnabled)
+                    Wire.OP_GET_PREKEY -> handleGetPreKey(it, kyberProvider)
                     else -> Log.w(TAG, "unknown opcode")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "connection ended: ${e.message}")
             }
         }
+    }
+
+    private fun handleGetPreKey(socket: Socket, kyberProvider: () -> KyberBundle?) {
+        val bundle = kyberProvider() ?: KyberBundle(0, ByteArray(0), ByteArray(0))
+        Wire.writeKyber(Wire.output(socket.getOutputStream()), bundle.id, bundle.key, bundle.signature)
     }
 
     private fun handleDeposit(input: DataInputStream, mailbox: MailboxStore, enabled: Boolean) {

@@ -67,11 +67,14 @@ class CryptoEngine(
      * Build our own contact card, embedding [onionAddress] (may be empty before
      * Tor is up). [clientAuthPub] is our Tor client-auth public key, included
      * only when the experimental feature is on (empty otherwise).
+     *
+     * The ~1.5 KB post-quantum Kyber prekey is deliberately LEFT OUT (empty
+     * slot) so the QR stays small and scannable; the peer fetches it over Tor
+     * at first contact (see [myKyberBundle] / OP_GET_PREKEY).
      */
     fun myCard(onionAddress: String, clientAuthPub: ByteArray = ByteArray(0)): ContactCard {
         ensurePreKeys()
         val signed = store.loadSignedPreKey(signedPreKeyId)
-        val kyber = store.loadKyberPreKey(kyberPreKeyId)
         return ContactCard(
             displayName = identity.displayName,
             registrationId = identity.registrationId,
@@ -79,13 +82,38 @@ class CryptoEngine(
             signedPreKeyId = signed.id,
             signedPreKey = signed.keyPair.publicKey.serialize(),
             signedPreKeySignature = signed.signature,
-            kyberPreKeyId = kyber.id,
-            kyberPreKey = kyber.keyPair.publicKey.serialize(),
-            kyberPreKeySignature = kyber.signature,
+            kyberPreKeyId = 0,
+            kyberPreKey = ByteArray(0),
+            kyberPreKeySignature = ByteArray(0),
             onionAddress = onionAddress,
             mailboxAddress = identity.mailboxAddress,
             clientAuthPub = clientAuthPub,
         )
+    }
+
+    /** Our current Kyber prekey, served over Tor so a new peer can complete our card. */
+    fun myKyberBundle(): KyberBundle {
+        ensurePreKeys()
+        val kyber = store.loadKyberPreKey(kyberPreKeyId)
+        return KyberBundle(kyber.id, kyber.keyPair.publicKey.serialize(), kyber.signature)
+    }
+
+    /** True once we've paired with [identityHex] but still lack their Kyber prekey. */
+    fun cardNeedsKyber(identityHex: String): Boolean {
+        if (hasSession(identityHex)) return false
+        val card = peerCard(identityHex) ?: return false
+        return card.kyberPreKey.isEmpty()
+    }
+
+    /** Fill in a peer's fetched Kyber prekey, completing their stored card. */
+    fun attachKyber(identityHex: String, bundle: KyberBundle) = synchronized(ratchetLock) {
+        val card = peerCard(identityHex) ?: return@synchronized
+        val completed = card.copy(
+            kyberPreKeyId = bundle.id,
+            kyberPreKey = bundle.key,
+            kyberPreKeySignature = bundle.signature,
+        )
+        store.rawPut("card_$identityHex", completed.encode().toByteArray(Charsets.UTF_8))
     }
 
     /** A paired peer's stored card, or null if we have none. */
@@ -134,6 +162,11 @@ class CryptoEngine(
         val cardBytes = store.rawGet("card_$identityHex")
             ?: throw IllegalStateException("no pairing card for $identityHex; re-pair to start a session")
         val card = ContactCard.decode(String(cardBytes, Charsets.UTF_8))
+        if (card.kyberPreKey.isEmpty()) {
+            // The Kyber prekey isn't in the QR anymore; it must be fetched over
+            // Tor from the peer first (MessageSender heals the card before this).
+            throw IllegalStateException("peer prekey not fetched yet for $identityHex")
+        }
         val bundle = PreKeyBundle(
             card.registrationId,
             localDeviceId,
@@ -211,6 +244,17 @@ class CryptoEngine(
                 ((Character.digit(hex[i * 2], 16) shl 4) + Character.digit(hex[i * 2 + 1], 16)).toByte()
             }
     }
+}
+
+/** A peer's Kyber prekey, fetched over Tor to complete their pairing card. */
+data class KyberBundle(val id: Int, val key: ByteArray, val signature: ByteArray) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is KyberBundle) return false
+        return id == other.id && key.contentEquals(other.key) && signature.contentEquals(other.signature)
+    }
+
+    override fun hashCode(): Int = 31 * (31 * id + key.contentHashCode()) + signature.contentHashCode()
 }
 
 /** A serialized ciphertext: its libsignal [type] (PREKEY_TYPE / WHISPER_TYPE) and [body]. */

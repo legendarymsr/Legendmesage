@@ -82,6 +82,13 @@ class SelfTest(private val context: Context) {
             check("Pairing: Alice has Bob", alice.contacts.get(bob.hexStr) != null)
             check("Pairing: Bob has Alice", bob.contacts.get(alice.hexStr) != null)
 
+            // The QR no longer carries the Kyber prekey; it's fetched over Tor at
+            // first contact. Here the card is incomplete until we attach it.
+            check("Card needs Kyber before fetch", alice.crypto.cardNeedsKyber(bob.hexStr))
+            alice.crypto.attachKyber(bob.hexStr, bob.crypto.myKyberBundle())
+            bob.crypto.attachKyber(alice.hexStr, alice.crypto.myKyberBundle())
+            check("Kyber attached → card complete", !alice.crypto.cardNeedsKyber(bob.hexStr))
+
             // First message A -> B establishes the session (PreKey message).
             val first = "hello Bob — from Alice"
             transfer(alice, bob, first)
@@ -217,6 +224,8 @@ class SelfTest(private val context: Context) {
             // …and an older-style card without one still decodes (empty), proving back-compat.
             val legacyCard = alice.crypto.myCard("alice.onion")
             check("Card without client-auth key decodes empty", ContactCard.decode(legacyCard.encode()).clientAuthPub.isEmpty())
+            // The QR is small now that the ~1.5 KB Kyber key is fetched over Tor.
+            check("QR payload is small (Kyber not in card)", legacyCard.encodeQr().length < 500)
 
             log("")
             if (ok) {
@@ -330,6 +339,7 @@ class SelfTest(private val context: Context) {
     /** Sender hasn't paired with recipient; build an envelope anyway (for the drop test). */
     private fun encryptNoSession(sender: Peer, recipient: Peer, text: String): Wire.Envelope {
         sender.crypto.addContact(recipient.crypto.myCard(""))
+        sender.crypto.attachKyber(recipient.hexStr, recipient.crypto.myKyberBundle())
         val enc = sender.crypto.encrypt(recipient.hexStr, text.toByteArray(Charsets.UTF_8))
         return Wire.Envelope(sender.crypto.myIdentityKeyBytes(), enc.type, enc.body)
     }

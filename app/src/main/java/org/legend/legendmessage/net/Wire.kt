@@ -26,6 +26,9 @@ object Wire {
     /** Long-lived authenticated mailbox stream: backlog then live pushes. */
     const val OP_SUBSCRIBE = 4
 
+    /** Fetch the server's Kyber prekey (so a new peer can complete our card). */
+    const val OP_GET_PREKEY = 5
+
     /** Stream frame kinds (after a SUBSCRIBE is authenticated). */
     const val STREAM_ENVELOPE = 0
     const val STREAM_KEEPALIVE = 1
@@ -93,4 +96,21 @@ object Wire {
 
     /** Reads the next stream frame kind; the caller reads the envelope if it is [STREAM_ENVELOPE]. */
     fun readStreamKind(input: DataInputStream): Int = input.readInt()
+
+    // ---- Kyber prekey exchange (OP_GET_PREKEY response) ----
+
+    fun writeKyber(out: DataOutputStream, id: Int, key: ByteArray, signature: ByteArray) {
+        out.writeInt(id)
+        writeFrame(out, key)
+        writeFrame(out, signature)
+        out.flush()
+    }
+
+    /** Returns (id, key, signature); an empty key means the peer had none. */
+    fun readKyber(input: DataInputStream): Triple<Int, ByteArray, ByteArray> {
+        val id = input.readInt()
+        val key = readFrame(input)
+        val signature = readFrame(input)
+        return Triple(id, key, signature)
+    }
 }

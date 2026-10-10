@@ -54,6 +54,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         MessageBus.addListener(busListener)
+        App.services().sender.healContacts() // fetch prekey for a new contact if needed
         App.services().sender.flush()
         renderVerifyState()
         reload()

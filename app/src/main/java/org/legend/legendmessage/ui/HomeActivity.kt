@@ -196,6 +196,9 @@ class HomeActivity : AppCompatActivity() {
         try {
             val contact = App.services().crypto.addContact(card)
             refresh()
+            // Fetch their Kyber prekey over Tor now (it isn't in the QR), so the
+            // first message sends without waiting.
+            App.services().sender.healContacts()
             AlertDialog.Builder(this)
                 .setTitle(R.string.pair_ok_title)
                 .setMessage(getString(R.string.pair_ok_body, contact.displayName))

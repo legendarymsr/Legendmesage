@@ -178,6 +178,7 @@ class TorForegroundService : Service() {
                 // retries the outbox and heals the subscription if it died.
                 services.peerServer.start()
                 services.mailboxPoller.start()
+                services.sender.healContacts() // fetch new contacts' prekeys over Tor
                 services.sender.flush()
                 if (!polling) {
                     polling = true

@@ -2,6 +2,7 @@ package org.legend.legendmessage.net
 
 import android.util.Log
 import org.legend.legendmessage.crypto.IdentityManager
+import org.legend.legendmessage.crypto.KyberBundle
 import org.legend.legendmessage.data.MailboxStore
 import org.legend.legendmessage.tor.TorConfig
 import java.net.InetSocketAddress
@@ -16,6 +17,7 @@ class PeerServer(
     private val identity: IdentityManager,
     private val inbound: InboundDelivery,
     private val mailbox: MailboxStore,
+    private val kyberProvider: () -> KyberBundle?,
 ) {
     @Volatile private var serverSocket: ServerSocket? = null
     private var acceptThread: Thread? = null
@@ -44,7 +46,7 @@ class PeerServer(
             while (!Thread.currentThread().isInterrupted) {
                 val socket = server.accept()
                 workers.execute {
-                    MailboxProtocol.handle(socket, inbound, mailbox, identity.mailboxEnabled)
+                    MailboxProtocol.handle(socket, inbound, mailbox, identity.mailboxEnabled, kyberProvider)
                 }
             }
         } catch (e: Exception) {
