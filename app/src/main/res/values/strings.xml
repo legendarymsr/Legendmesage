@@ -87,4 +87,14 @@
     <string name="mailbox_mode_label">Run this device as a mailbox for my contacts</string>
     <string name="mailbox_this_device_label">This device\'s address (use it as a mailbox on your other device):</string>
     <string name="mailbox_this_device_pending">Not available yet — wait for Tor to come online.</string>
+
+    <!-- Danger zone / panic wipe -->
+    <string name="settings_danger_title">Danger zone</string>
+    <string name="settings_wipe_blurb">Permanently erase this device\'s identity, keys, contacts, and all message history. There is no undo and no server copy. Use this if the device may fall into the wrong hands.</string>
+    <string name="settings_wipe_title">Erase everything</string>
+    <string name="settings_wipe_body">This wipes your identity, contacts, and message history for good. To confirm, type ERASE below.</string>
+    <string name="settings_wipe_word">ERASE</string>
+    <string name="settings_wipe_confirm_hint">Type ERASE to confirm</string>
+    <string name="settings_wipe_confirm">Erase</string>
+    <string name="settings_wipe_cancelled">Cancelled — nothing was erased.</string>
 </resources>

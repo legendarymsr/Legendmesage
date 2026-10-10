@@ -1,9 +1,13 @@
 package org.legend.legendmessage.app
 
+import android.app.Activity
 import android.app.Application
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.Process
+import android.view.WindowManager
+import org.legend.legendmessage.BuildConfig
 import org.legend.legendmessage.ui.CrashActivity
 import java.io.File
 import java.io.PrintWriter
@@ -20,8 +24,33 @@ class App : Application() {
         // init there (it could re-trigger a startup crash and loop).
         if (currentProcessName().endsWith(":crash")) return
         installCrashHandler()
+        if (BuildConfig.SECURE_WINDOWS) installSecureWindows()
         instance = this
         services = ServiceLocator(this)
+    }
+
+    /**
+     * Mark every window FLAG_SECURE so the OS blocks screenshots and screen
+     * recording and shows a blank card (not chat content) in the app switcher.
+     * Registered once for all activities so no screen can forget it. The debug
+     * flavor sets SECURE_WINDOWS=false so self-test output stays shareable.
+     */
+    private fun installSecureWindows() {
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                activity.window.setFlags(
+                    WindowManager.LayoutParams.FLAG_SECURE,
+                    WindowManager.LayoutParams.FLAG_SECURE,
+                )
+            }
+
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityResumed(activity: Activity) {}
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        })
     }
 
     private fun currentProcessName(): String =

@@ -52,6 +52,34 @@ class SettingsActivity : AppCompatActivity() {
         binding.mailboxModeCheck.setOnCheckedChangeListener { _, checked ->
             identity.mailboxEnabled = checked
         }
+
+        binding.panicWipeButton.setOnClickListener { confirmPanicWipe() }
+    }
+
+    /**
+     * Irreversible "erase everything" — identity, keys, contacts, and all
+     * message history. Double-confirmed (dialog + typed word) because there is
+     * no undo and no server copy.
+     */
+    private fun confirmPanicWipe() {
+        val confirmInput = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            hint = getString(R.string.settings_wipe_confirm_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings_wipe_title)
+            .setMessage(R.string.settings_wipe_body)
+            .setView(confirmInput)
+            .setPositiveButton(R.string.settings_wipe_confirm) { _, _ ->
+                val typed = confirmInput.text?.toString()?.trim().orEmpty()
+                if (typed.equals(getString(R.string.settings_wipe_word), ignoreCase = true)) {
+                    org.legend.legendmessage.app.AppWipe.wipeAndRestart(this)
+                } else {
+                    toast(getString(R.string.settings_wipe_cancelled))
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun askPassphrase(exporting: Boolean, onEntered: (CharArray) -> Unit) {
@@ -83,6 +111,7 @@ class SettingsActivity : AppCompatActivity() {
                 contentResolver.openOutputStream(uri)?.use { it.write(blob) }
                     ?: error("could not open file")
             }
+            passphrase.fill('\u0000') // don't leave the passphrase in memory
             runOnUiThread {
                 toast(
                     if (result.isSuccess) getString(R.string.settings_export_ok)
@@ -99,6 +128,7 @@ class SettingsActivity : AppCompatActivity() {
                     ?: error("could not open file")
                 App.services().backup.import(blob, passphrase)
             }
+            passphrase.fill('\u0000') // don't leave the passphrase in memory
             runOnUiThread {
                 if (result.isSuccess) {
                     AlertDialog.Builder(this)
