@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug icon: a padlock with a master key inserted into the keyhole, so the
+     standalone debug app is told apart from the plain-lock messenger icon.
+     Kept inside the adaptive-icon circular safe zone (radius ~33 from center). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Shackle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#9ECE6A"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:pathData="M45,45 L45,39 A9,9 0 0 1 63,39 L63,45" />
+
+    <!-- Body -->
+    <path
+        android:fillColor="#9ECE6A"
+        android:pathData="M41,45 L67,45 A3,3 0 0 1 70,48 L70,65 A3,3 0 0 1 67,68 L41,68 A3,3 0 0 1 38,65 L38,48 A3,3 0 0 1 41,45 Z" />
+
+    <!-- Keyhole the key enters -->
+    <path
+        android:fillColor="#111111"
+        android:pathData="M54,53 m-3.5,0 a3.5,3.5 0 1 0 7,0 a3.5,3.5 0 1 0 -7,0" />
+
+    <!-- Master key: shaft through the keyhole, teeth, and ring (bow) below -->
+    <path
+        android:fillColor="#E0AF68"
+        android:pathData="M51.5,53 L56.5,53 L56.5,73 L51.5,73 Z" />
+    <path
+        android:fillColor="#E0AF68"
+        android:pathData="M56.5,63 L62,63 L62,66 L56.5,66 Z" />
+    <path
+        android:fillColor="#E0AF68"
+        android:pathData="M56.5,68 L60.5,68 L60.5,71 L56.5,71 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#E0AF68"
+        android:strokeWidth="3.5"
+        android:pathData="M54,78 m-5,0 a5,5 0 1 0 10,0 a5,5 0 1 0 -10,0" />
+</vector>
