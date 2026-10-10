@@ -27,7 +27,14 @@ class MyCodeActivity : AppCompatActivity() {
         // Onion address is empty until Tor is up (Stage 3); the card still pairs
         // the cryptographic session now.
         val onion = services.identity.onionAddress
-        val card = services.crypto.myCard(onion)
+        // Advertise our Tor client-auth public key only when the experimental
+        // feature is enabled, so a peer can authorize us on their onion.
+        val clientAuthPub = if (services.identity.torClientAuth) {
+            runCatching { services.clientAuth.publicKeyRaw() }.getOrDefault(ByteArray(0))
+        } else {
+            ByteArray(0)
+        }
+        val card = services.crypto.myCard(onion, clientAuthPub)
         // Render the QR near screen-width so the (necessarily dense) code has
         // large enough modules to scan.
         val sizePx = (resources.displayMetrics.widthPixels * 0.92f).toInt().coerceIn(480, 1440)

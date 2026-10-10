@@ -59,6 +59,9 @@ class CardReader(private val data: ByteArray) {
     }
 
     fun readString(): String = String(readBytes(), Charsets.UTF_8)
+
+    /** True if unread bytes remain — used to read optional, appended fields. */
+    fun hasRemaining(): Boolean = pos < data.size
 }
 
 object B64 {

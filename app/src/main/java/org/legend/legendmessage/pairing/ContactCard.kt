@@ -24,6 +24,13 @@ data class ContactCard(
     val kyberPreKeySignature: ByteArray,
     val onionAddress: String,
     val mailboxAddress: String,
+    /**
+     * Optional raw 32-byte x25519 public key for Tor onion client
+     * authorization. Appended after the original fields so older apps (which
+     * stop reading at mailboxAddress) ignore it, and newer apps read it only
+     * when present. Empty when the device hasn't enabled/created one.
+     */
+    val clientAuthPub: ByteArray = ByteArray(0),
 ) {
     private fun body(): ByteArray =
         CardWriter()
@@ -39,6 +46,7 @@ data class ContactCard(
             .putBytes(kyberPreKeySignature)
             .putString(onionAddress)
             .putString(mailboxAddress)
+            .putBytes(clientAuthPub)
             .toByteArray()
 
     /** Text form, for sharing as an invite link (copy/paste, messaging apps). */
@@ -86,6 +94,8 @@ data class ContactCard(
                 kyberPreKeySignature = r.readBytes(),
                 onionAddress = r.readString(),
                 mailboxAddress = r.readString(),
+                // Optional, appended field: present only on newer cards.
+                clientAuthPub = if (r.hasRemaining()) r.readBytes() else ByteArray(0),
             )
         }
     }

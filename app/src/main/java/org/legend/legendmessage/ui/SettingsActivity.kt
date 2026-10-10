@@ -58,6 +58,18 @@ class SettingsActivity : AppCompatActivity() {
             identity.verifiedOnlySend = checked
         }
 
+        binding.torClientAuthCheck.isChecked = identity.torClientAuth
+        binding.torClientAuthCheck.setOnCheckedChangeListener { _, checked ->
+            identity.torClientAuth = checked
+            if (checked) {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.settings_tor_auth_label)
+                    .setMessage(R.string.settings_tor_auth_on_body)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
+
         renderLockState()
         binding.appLockButton.setOnClickListener { setOrChangePin() }
         binding.removeLockButton.setOnClickListener { removeLock() }

@@ -9,9 +9,12 @@ import org.legend.legendmessage.data.ContactStore
 import org.legend.legendmessage.data.MailboxStore
 import org.legend.legendmessage.data.MessageDb
 import org.legend.legendmessage.data.MessageStore
+import org.legend.legendmessage.crypto.ClientAuthKeys
 import org.legend.legendmessage.net.InboundDelivery
 import org.legend.legendmessage.net.MailboxProtocol
 import org.legend.legendmessage.net.Wire
+import org.legend.legendmessage.pairing.ContactCard
+import org.legend.legendmessage.tor.Base32
 import org.signal.libsignal.protocol.ecc.ECPublicKey
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -183,6 +186,25 @@ class SelfTest(private val context: Context) {
             val strangerEnv = encryptNoSession(stranger, alice, "i am not your contact")
             val accepted = alice.inbound.deliver(strangerEnv)
             check("Unknown sender is dropped", !accepted)
+
+            // --- Tor onion client-authorization building blocks (no Tor needed) ---
+            log("")
+            log("Testing onion client-auth building blocks…")
+            check("Base32 RFC 4648 vector", Base32.encode("foobar".toByteArray()) == "MZXW6YTBOI")
+
+            val caStore = SecretStore(context, "selftest_${runId}_ca")
+            val ca = ClientAuthKeys(caStore)
+            val caPub = ca.publicKeyRaw()
+            check("Client-auth public key is 32 bytes", caPub.size == 32)
+            check("Client-auth private key is stable", ca.privateKeyBase32() == ClientAuthKeys(caStore).privateKeyBase32())
+
+            // A card carrying a client-auth key survives both encodings…
+            val baseCard = alice.crypto.myCard("alice.onion", caPub)
+            check("Card keeps client-auth key (text)", ContactCard.decode(baseCard.encode()).clientAuthPub.contentEquals(caPub))
+            check("Card keeps client-auth key (binary)", ContactCard.decodeBinary(baseCard.encodeBinary()).clientAuthPub.contentEquals(caPub))
+            // …and an older-style card without one still decodes (empty), proving back-compat.
+            val legacyCard = alice.crypto.myCard("alice.onion")
+            check("Card without client-auth key decodes empty", ContactCard.decode(legacyCard.encode()).clientAuthPub.isEmpty())
 
             log("")
             if (ok) {

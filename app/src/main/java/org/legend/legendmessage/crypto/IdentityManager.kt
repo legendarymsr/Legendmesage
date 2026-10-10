@@ -63,6 +63,13 @@ class IdentityManager(
             prefs.edit().putBoolean(PREF_VERIFIED_ONLY, value).apply()
         }
 
+    /** Experimental: require Tor v3 onion client authorization. Off by default. */
+    var torClientAuth: Boolean
+        get() = prefs.getBoolean(PREF_TOR_CLIENT_AUTH, false)
+        set(value) {
+            prefs.edit().putBoolean(PREF_TOR_CLIENT_AUTH, value).apply()
+        }
+
     /** Generate and persist a fresh identity. Safe to call only when [exists] is false. */
     fun create(displayName: String): IdentityKeyPair {
         val keyPair = IdentityKeyPair.generate()
@@ -102,6 +109,7 @@ class IdentityManager(
         private const val PREF_MAILBOX = "mailbox_address"
         private const val PREF_MAILBOX_MODE = "mailbox_mode"
         private const val PREF_VERIFIED_ONLY = "verified_only_send"
+        private const val PREF_TOR_CLIENT_AUTH = "tor_client_auth"
 
         fun fingerprintOf(identityKey: IdentityKey): String {
             val digest = MessageDigest.getInstance("SHA-256").digest(identityKey.serialize())

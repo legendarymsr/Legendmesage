@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import net.freehaven.tor.control.TorControlCommands
+import net.freehaven.tor.control.TorControlConnection
 import org.legend.legendmessage.MainActivity
 import org.legend.legendmessage.R
 import org.legend.legendmessage.app.App
@@ -134,17 +135,36 @@ class TorForegroundService : Service() {
                 mapOf(TorConfig.VIRTUAL_PORT to "127.0.0.1:${TorConfig.LOCAL_PORT}")
 
             val stored = services.secretStore.get("onion_key")?.let { String(it, Charsets.UTF_8) }
-            val result = if (stored != null) {
-                control.addOnion(stored, ports)
-            } else {
-                control.addOnion("NEW:BEST", ports)
-            }
+            val keyBlob = stored ?: "NEW:BEST"
 
-            val serviceId = result[TorControlCommands.HS_ADDRESS]
-            val privKey = result[TorControlCommands.HS_PRIVKEY]
+            // Experimental: restrict the onion to authorized client keys. Only
+            // possible when at least one contact has shared a client-auth key;
+            // any failure falls back to a normal (unauthenticated) onion so the
+            // transport never ends up dead.
+            var serviceId: String?
+            var privKey: String?
+            val authorizedPubs = if (services.identity.torClientAuth) authorizedClientPubs() else emptyList()
+            if (authorizedPubs.isNotEmpty()) {
+                val authed = TorClientAuth.addOnionWithClientAuth(
+                    control, keyBlob, TorConfig.VIRTUAL_PORT, TorConfig.LOCAL_PORT, authorizedPubs,
+                )
+                if (authed != null) {
+                    serviceId = authed.serviceId
+                    privKey = authed.privateKey
+                } else {
+                    val result = control.addOnion(keyBlob, ports)
+                    serviceId = result[TorControlCommands.HS_ADDRESS]
+                    privKey = result[TorControlCommands.HS_PRIVKEY]
+                }
+            } else {
+                val result = control.addOnion(keyBlob, ports)
+                serviceId = result[TorControlCommands.HS_ADDRESS]
+                privKey = result[TorControlCommands.HS_PRIVKEY]
+            }
             if (stored == null && privKey != null) {
                 services.secretStore.put("onion_key", privKey.toByteArray(Charsets.UTF_8))
             }
+            if (services.identity.torClientAuth) registerPeerClientKeys(control)
 
             val socks = torService?.socksPort ?: TorService.socksPort
             if (serviceId != null) {
@@ -172,6 +192,30 @@ class TorForegroundService : Service() {
         } catch (e: Exception) {
             TorState.update(status = TorState.Status.ERROR)
             updateNotification(getString(R.string.tor_notif_error, e.message ?: ""))
+        }
+    }
+
+    /** Base32 client-auth public keys of every contact that advertised one. */
+    private fun authorizedClientPubs(): List<String> {
+        val services = App.services()
+        return services.contacts.all().mapNotNull { c ->
+            val pub = services.crypto.peerCard(c.identityHex)?.clientAuthPub
+            if (pub != null && pub.isNotEmpty()) services.clientAuth.peerPubToBase32(pub) else null
+        }
+    }
+
+    /**
+     * Register our client-auth private key against each contact's onion so we
+     * can connect to peers who authorized us. Safe to run on every Tor start
+     * (idempotent) and takes effect live, without recreating our own onion.
+     */
+    private fun registerPeerClientKeys(control: TorControlConnection) {
+        val services = App.services()
+        val privBase32 = runCatching { services.clientAuth.privateKeyBase32() }.getOrNull() ?: return
+        services.contacts.all().forEach { c ->
+            val card = services.crypto.peerCard(c.identityHex) ?: return@forEach
+            if (card.clientAuthPub.isEmpty() || card.onionAddress.isBlank()) return@forEach
+            TorClientAuth.registerClientKey(control, card.onionAddress.removeSuffix(".onion"), privBase32)
         }
     }
 
