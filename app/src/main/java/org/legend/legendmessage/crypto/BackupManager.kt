@@ -26,6 +26,8 @@ class BackupManager(
     fun export(passphrase: CharArray): ByteArray {
         val secrets = JSONObject()
         for (name in secretStore.allKeys()) {
+            // The app lock is device-local; don't carry it into a restore.
+            if (name.startsWith(LockManager.KEY_PREFIX)) continue
             val value = secretStore.get(name) ?: continue
             secrets.put(name, Base64.encodeToString(value, Base64.NO_WRAP))
         }

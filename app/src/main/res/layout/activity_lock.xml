@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/tn_bg"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/lock_title"
+        android:textColor="@color/tn_blue"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:text="@string/lock_subtitle"
+        android:textColor="@color/tn_dim"
+        android:textSize="13sp" />
+
+    <EditText
+        android:id="@+id/pinInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:gravity="center"
+        android:hint="@string/lock_pin_hint"
+        android:importantForAutofill="no"
+        android:inputType="numberPassword"
+        android:letterSpacing="0.3"
+        android:textColor="@color/tn_fg"
+        android:textColorHint="@color/tn_dim"
+        android:textSize="22sp" />
+
+    <Button
+        android:id="@+id/unlockButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/lock_unlock" />
+
+    <Button
+        android:id="@+id/biometricButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/lock_use_biometric"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/forgotButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:background="@android:color/transparent"
+        android:text="@string/lock_forgot_title"
+        android:textColor="@color/tn_red"
+        android:textSize="12sp" />
+</LinearLayout>

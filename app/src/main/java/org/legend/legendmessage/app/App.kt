@@ -9,10 +9,14 @@ import android.os.Process
 import android.view.WindowManager
 import org.legend.legendmessage.BuildConfig
 import org.legend.legendmessage.ui.CrashActivity
+import org.legend.legendmessage.ui.LockActivity
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.system.exitProcess
+
+/** Marker for screens that must NOT be gated by the app lock (the lock screen itself). */
+interface LockGate
 
 class App : Application() {
     lateinit var services: ServiceLocator
@@ -24,30 +28,65 @@ class App : Application() {
         // init there (it could re-trigger a startup crash and loop).
         if (currentProcessName().endsWith(":crash")) return
         installCrashHandler()
-        if (BuildConfig.SECURE_WINDOWS) installSecureWindows()
         instance = this
         services = ServiceLocator(this)
+        installActivityCallbacks()
     }
 
+    // ---- App lock state (gates the UI, not the background Tor service) ----
+
+    @Volatile
+    private var locked = true // demand unlock on cold start if a lock is set
+    private var startedActivities = 0
+
+    private fun lockConfigured(): Boolean = runCatching { services.lock.hasPin() }.getOrDefault(false)
+
+    /** Called by the lock screen after a successful PIN/biometric unlock. */
+    fun markUnlocked() {
+        locked = false
+    }
+
+    fun isLocked(): Boolean = locked && lockConfigured()
+
     /**
-     * Mark every window FLAG_SECURE so the OS blocks screenshots and screen
-     * recording and shows a blank card (not chat content) in the app switcher.
-     * Registered once for all activities so no screen can forget it. The debug
-     * flavor sets SECURE_WINDOWS=false so self-test output stays shareable.
+     * One place for every per-activity concern:
+     *  - FLAG_SECURE on create (standard flavor only), so no screen can forget it;
+     *  - app-lock gating on resume, and relocking when the app goes to background.
+     * The Tor foreground service is not an activity, so it keeps running while
+     * the UI is locked.
      */
-    private fun installSecureWindows() {
+    private fun installActivityCallbacks() {
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-                activity.window.setFlags(
-                    WindowManager.LayoutParams.FLAG_SECURE,
-                    WindowManager.LayoutParams.FLAG_SECURE,
-                )
+                if (BuildConfig.SECURE_WINDOWS) {
+                    activity.window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                    )
+                }
             }
 
-            override fun onActivityStarted(activity: Activity) {}
-            override fun onActivityResumed(activity: Activity) {}
+            override fun onActivityStarted(activity: Activity) {
+                startedActivities++
+            }
+
+            override fun onActivityResumed(activity: Activity) {
+                if (isLocked() && activity !is LockGate) {
+                    activity.startActivity(
+                        Intent(activity, LockActivity::class.java)
+                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    )
+                }
+            }
+
             override fun onActivityPaused(activity: Activity) {}
-            override fun onActivityStopped(activity: Activity) {}
+
+            override fun onActivityStopped(activity: Activity) {
+                startedActivities--
+                // Whole app in background: relock so returning requires unlock.
+                if (startedActivities <= 0 && lockConfigured()) locked = true
+            }
+
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}
         })

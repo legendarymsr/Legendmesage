@@ -4,6 +4,7 @@ import android.content.Context
 import org.legend.legendmessage.crypto.BackupManager
 import org.legend.legendmessage.crypto.CryptoEngine
 import org.legend.legendmessage.crypto.IdentityManager
+import org.legend.legendmessage.crypto.LockManager
 import org.legend.legendmessage.crypto.SecretStore
 import org.legend.legendmessage.crypto.SignalStore
 import org.legend.legendmessage.data.ContactStore
@@ -27,6 +28,7 @@ class ServiceLocator(context: Context) {
     val signalStore: SignalStore by lazy { SignalStore(secretStore, identity) }
     val crypto: CryptoEngine by lazy { CryptoEngine(identity, signalStore, contacts) }
     val backup: BackupManager by lazy { BackupManager(secretStore, identity) }
+    val lock: LockManager by lazy { LockManager(secretStore) }
 
     val messageDb: MessageDb by lazy { MessageDb(appContext, secretStore) }
     val messages: MessageStore by lazy { MessageStore(messageDb) }

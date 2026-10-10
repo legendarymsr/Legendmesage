@@ -104,6 +104,29 @@
     <string name="pair_namecollision_body">You already have a contact named \"%1$s\" with a different key. This could be an innocent name clash — or someone impersonating them. Only add if you trust this code.</string>
     <string name="pair_namecollision_add">Add anyway</string>
 
+    <!-- App lock -->
+    <string name="settings_lock_setup">Set up app lock (PIN)</string>
+    <string name="settings_lock_change">Change app-lock PIN</string>
+    <string name="settings_lock_remove">Remove app lock</string>
+    <string name="settings_lock_remove_body">Remove the PIN lock? The app will open without asking for a PIN.</string>
+    <string name="settings_lock_removed">App lock removed.</string>
+    <string name="settings_lock_biometric">Allow fingerprint / face unlock</string>
+    <string name="settings_lock_blurb">The PIN gates the app and your history. The Tor service keeps running while locked, so messages still arrive. If you forget the PIN there is no recovery except erasing and restoring from a backup.</string>
+    <string name="settings_lock_pin_hint">New PIN (4+ digits)</string>
+    <string name="settings_lock_pin_body">Choose a PIN to unlock the app. At least 4 digits.</string>
+    <string name="settings_lock_pin_short">Use at least 4 digits</string>
+    <string name="settings_lock_set">App lock set.</string>
+    <string name="lock_title">LegendMessage</string>
+    <string name="lock_subtitle">Enter your PIN to unlock.</string>
+    <string name="lock_pin_hint">PIN</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_use_biometric">Use fingerprint / face</string>
+    <string name="lock_use_pin">Use PIN</string>
+    <string name="lock_biometric_title">Unlock LegendMessage</string>
+    <string name="lock_wrong_pin">Wrong PIN</string>
+    <string name="lock_forgot_title">Forgot PIN?</string>
+    <string name="lock_forgot_body">There is no way to recover a forgotten PIN. You can erase this device\'s identity and history and start over (or restore from a backup). Erase now?</string>
+
     <!-- Danger zone / panic wipe -->
     <string name="settings_danger_title">Danger zone</string>
     <string name="settings_wipe_blurb">Permanently erase this device\'s identity, keys, contacts, and all message history. There is no undo and no server copy. Use this if the device may fall into the wrong hands.</string>
