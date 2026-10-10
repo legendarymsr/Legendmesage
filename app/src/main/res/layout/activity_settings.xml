@@ -1,120 +1,157 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/tn_bg"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/settings_title"
-        android:textColor="@color/tn_blue"
-        android:textSize="22sp"
-        android:textStyle="bold" />
-
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/settings_backup_blurb"
-        android:textColor="@color/tn_dim"
-        android:textSize="14sp" />
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <Button
-        android:id="@+id/exportButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="@string/settings_export" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_title"
+            android:textColor="@color/tn_blue"
+            android:textSize="22sp"
+            android:textStyle="bold" />
 
-    <Button
-        android:id="@+id/importButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/settings_import" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/settings_backup_blurb"
+            android:textColor="@color/tn_dim"
+            android:textSize="14sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="@string/settings_footnote"
-        android:textColor="@color/tn_dim"
-        android:textSize="12sp" />
+        <Button
+            android:id="@+id/exportButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/settings_export" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginVertical="24dp"
-        android:background="@color/tn_surface" />
+        <Button
+            android:id="@+id/importButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/settings_import" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/mailbox_title"
-        android:textColor="@color/tn_blue"
-        android:textSize="18sp"
-        android:textStyle="bold" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/settings_footnote"
+            android:textColor="@color/tn_dim"
+            android:textSize="12sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/mailbox_blurb"
-        android:textColor="@color/tn_dim"
-        android:textSize="13sp" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="24dp"
+            android:background="@color/tn_surface" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/mailbox_my_address_label"
-        android:textColor="@color/tn_fg"
-        android:textSize="14sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/mailbox_title"
+            android:textColor="@color/tn_blue"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-    <EditText
-        android:id="@+id/mailboxAddressInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fontFamily="monospace"
-        android:hint="@string/mailbox_my_address_hint"
-        android:inputType="textNoSuggestions"
-        android:textColor="@color/tn_fg"
-        android:textColorHint="@color/tn_dim"
-        android:textSize="13sp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/mailbox_blurb"
+            android:textColor="@color/tn_dim"
+            android:textSize="13sp" />
 
-    <Button
-        android:id="@+id/mailboxSaveButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end"
-        android:text="@string/mailbox_save" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/mailbox_my_address_label"
+            android:textColor="@color/tn_fg"
+            android:textSize="14sp" />
 
-    <CheckBox
-        android:id="@+id/mailboxModeCheck"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/mailbox_mode_label"
-        android:textColor="@color/tn_fg" />
+        <EditText
+            android:id="@+id/mailboxAddressInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:hint="@string/mailbox_my_address_hint"
+            android:inputType="textNoSuggestions"
+            android:textColor="@color/tn_fg"
+            android:textColorHint="@color/tn_dim"
+            android:textSize="13sp" />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/mailbox_this_device_label"
-        android:textColor="@color/tn_dim"
-        android:textSize="12sp" />
+        <Button
+            android:id="@+id/mailboxSaveButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="@string/mailbox_save" />
 
-    <TextView
-        android:id="@+id/mailboxThisDevice"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fontFamily="monospace"
-        android:textColor="@color/tn_green"
-        android:textIsSelectable="true"
-        android:textSize="12sp" />
-</LinearLayout>
+        <CheckBox
+            android:id="@+id/mailboxModeCheck"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/mailbox_mode_label"
+            android:textColor="@color/tn_fg" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/mailbox_this_device_label"
+            android:textColor="@color/tn_dim"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/mailboxThisDevice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/tn_green"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="24dp"
+            android:background="@color/tn_surface" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/settings_danger_title"
+            android:textColor="@color/tn_red"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/settings_wipe_blurb"
+            android:textColor="@color/tn_dim"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/panicWipeButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@color/tn_red"
+            android:text="@string/settings_wipe_title"
+            android:textColor="@color/tn_bg" />
+    </LinearLayout>
+</ScrollView>

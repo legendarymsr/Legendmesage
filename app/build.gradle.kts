@@ -31,11 +31,15 @@ android {
     productFlavors {
         create("standard") {
             dimension = "mode"
+            // Block screenshots/recording and hide content in recents.
+            buildConfigField("boolean", "SECURE_WINDOWS", "true")
         }
         create("debugkit") {
             dimension = "mode"
             applicationIdSuffix = ".debugkit"
             versionNameSuffix = "-debug"
+            // Keep the debug app screenshot-able so self-test output can be shared.
+            buildConfigField("boolean", "SECURE_WINDOWS", "false")
         }
     }
 

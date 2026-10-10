@@ -42,12 +42,15 @@ class BackupManager(
 
         val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, deriveKey(passphrase, salt))
+        cipher.init(Cipher.ENCRYPT_MODE, deriveKey(passphrase, salt, ITERATIONS))
         val iv = cipher.iv
         val body = cipher.doFinal(payload)
 
-        return ByteBuffer.allocate(MAGIC.size + salt.size + 1 + iv.size + body.size)
-            .put(MAGIC)
+        // LMBK2 is self-describing: it records the PBKDF2 iteration count so the
+        // count can be raised in future builds without breaking older backups.
+        return ByteBuffer.allocate(MAGIC2.size + 4 + salt.size + 1 + iv.size + body.size)
+            .put(MAGIC2)
+            .putInt(ITERATIONS)
             .put(salt)
             .put(iv.size.toByte())
             .put(iv)
@@ -57,15 +60,19 @@ class BackupManager(
 
     fun import(blob: ByteArray, passphrase: CharArray) {
         val buffer = ByteBuffer.wrap(blob)
-        val magic = ByteArray(MAGIC.size).also { buffer.get(it) }
-        require(magic.contentEquals(MAGIC)) { "not a LegendMessage backup" }
+        val magic = ByteArray(MAGIC2.size).also { buffer.get(it) }
+        val iterations = when {
+            magic.contentEquals(MAGIC2) -> buffer.getInt()
+            magic.contentEquals(MAGIC1) -> LEGACY_ITERATIONS // older fixed-count backup
+            else -> throw IllegalArgumentException("not a LegendMessage backup")
+        }
         val salt = ByteArray(16).also { buffer.get(it) }
         val ivLen = buffer.get().toInt() and 0xFF
         val iv = ByteArray(ivLen).also { buffer.get(it) }
         val body = ByteArray(buffer.remaining()).also { buffer.get(it) }
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, deriveKey(passphrase, salt), GCMParameterSpec(128, iv))
+        cipher.init(Cipher.DECRYPT_MODE, deriveKey(passphrase, salt, iterations), GCMParameterSpec(128, iv))
         val json = JSONObject(String(cipher.doFinal(body), Charsets.UTF_8))
 
         val secrets = json.getJSONObject("secrets")
@@ -76,13 +83,25 @@ class BackupManager(
         identity.importPrefs(prefs.getInt("reg"), prefs.getString("name"), prefs.getString("onion"))
     }
 
-    private fun deriveKey(passphrase: CharArray, salt: ByteArray): SecretKeySpec {
-        val spec = PBEKeySpec(passphrase, salt, 120_000, 256)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+    private fun deriveKey(passphrase: CharArray, salt: ByteArray, iterations: Int): SecretKeySpec {
+        // PBKDF2-HMAC-SHA256. A real Argon2id KDF would resist GPU cracking
+        // better but needs a native dependency; this is the strongest portable
+        // choice from the platform JCA.
+        val spec = PBEKeySpec(passphrase, salt, iterations, 256)
+        try {
+            val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+            return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+        } finally {
+            // Don't leave the passphrase sitting in the spec's internal copy.
+            spec.clearPassword()
+        }
     }
 
     companion object {
-        private val MAGIC = "LMBK1".toByteArray(Charsets.US_ASCII)
+        // 600k PBKDF2 iterations (OWASP 2023 floor), up from the original 120k.
+        private const val ITERATIONS = 600_000
+        private const val LEGACY_ITERATIONS = 120_000
+        private val MAGIC1 = "LMBK1".toByteArray(Charsets.US_ASCII)
+        private val MAGIC2 = "LMBK2".toByteArray(Charsets.US_ASCII)
     }
 }
