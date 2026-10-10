@@ -30,6 +30,7 @@
     <!-- Scanning / pairing -->
     <string name="scan_prompt">Scan a LegendMessage code</string>
     <string name="scan_not_a_card">That QR is not a LegendMessage contact code</string>
+    <string name="scan_misread">Couldn\'t read that code. Make sure both phones are on the latest version, then hold steady and rescan — or use Share → paste instead.</string>
     <string name="pair_ok_title">Contact added</string>
     <string name="pair_ok_body">%1$s was added. Your messages will be end-to-end encrypted. For both of you to message each other, they need to add you too.</string>
     <string name="pair_failed">Could not pair: %1$s</string>
