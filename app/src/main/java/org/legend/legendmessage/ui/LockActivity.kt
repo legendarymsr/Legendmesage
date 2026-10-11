@@ -50,6 +50,12 @@ class LockActivity : AppCompatActivity(), LockGate {
     private fun isStillLocked(): Boolean = App.instance.isLocked()
 
     private fun tryPin() {
+        val wait = lock.lockoutRemainingMs()
+        if (wait > 0) {
+            binding.pinInput.text?.clear()
+            Toast.makeText(this, getString(R.string.lock_wait, (wait + 999) / 1000), Toast.LENGTH_SHORT).show()
+            return
+        }
         val pin = binding.pinInput.text?.toString()?.toCharArray() ?: CharArray(0)
         val ok = lock.verify(pin)
         pin.fill('\u0000')

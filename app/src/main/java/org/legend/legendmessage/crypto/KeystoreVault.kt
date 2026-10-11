@@ -44,6 +44,16 @@ object KeystoreVault {
         return generator.generateKey()
     }
 
+    /**
+     * Destroy the master key. Every blob it wrapped becomes undecryptable even
+     * if flash storage still holds the deleted files (crypto-shredding).
+     */
+    @Synchronized
+    fun deleteMasterKey() {
+        val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+        if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
+    }
+
     /** Encrypt [plain]; output is `[ivLen][iv][ciphertext+tag]`. */
     fun encrypt(plain: ByteArray): ByteArray {
         val cipher = Cipher.getInstance(TRANSFORMATION)

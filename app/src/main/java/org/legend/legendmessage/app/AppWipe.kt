@@ -20,6 +20,9 @@ object AppWipe {
     fun wipe(context: Context) {
         val app = context.applicationContext
         runCatching { TorForegroundService.stop(app) }
+        // Destroy the Keystore master key first: deleted files may linger on
+        // flash, but without this key they can never be decrypted.
+        runCatching { org.legend.legendmessage.crypto.KeystoreVault.deleteMasterKey() }
         // Keystore-encrypted secret set (identity, prekeys, onion key, contacts, cards, lock).
         runCatching { File(app.filesDir, "secretstore").deleteRecursively() }
         // SQLCipher message history (db + -wal/-shm siblings).
