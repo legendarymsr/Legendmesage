@@ -33,8 +33,10 @@ both:
 - **The Signal protocol does the encryption** — X3DH for the initial key
   agreement and the Double Ratchet for per-message forward secrecy, via the
   official `libsignal` library. We do not roll our own crypto.
-- **Everything at rest is encrypted** — the message database with SQLCipher, and
-  the keys themselves wrapped by the Android Keystore.
+- **Messages and keys at rest are encrypted** — the message database with
+  SQLCipher, and the keys themselves wrapped by the Android Keystore. A few
+  non-secret settings (your display name, onion and mailbox addresses, toggles)
+  live in ordinary app-private preferences.
 
 ## Honest limitations (read this)
 
@@ -43,8 +45,7 @@ about the trade-offs of the pure-P2P-over-Tor model:
 
 - **Both devices must be online at the same time** to exchange messages
   directly. Asynchronous delivery (a "mailbox" that holds messages while a peer
-  is offline) is a later-stage feature; until then, think of it like a direct
-  call rather than store-and-forward email.
+  is offline) is available via the optional mailbox mode below.
 - **Android fights background networking.** Keeping a Tor onion service
   reachable needs a persistent **foreground service** and the user granting a
   **battery-optimization exemption**. Even then, aggressive OEM battery killers
@@ -77,19 +78,24 @@ about the trade-offs of the pure-P2P-over-Tor model:
 2. **Tor comes up** in a foreground service and publishes your onion v3 service
    (key persisted, so the address is stable). Your onion forwards to a local
    port where the app listens.
-3. **Pairing:** you show your QR (identity + signed prekey + Kyber prekey +
-   onion address); your contact scans it, and you scan theirs. Each scan saves
-   the other's card — no server, no directory.
+3. **Pairing:** you show your QR (identity + signed prekey + onion address);
+   your contact scans it, and you scan theirs. Each scan saves the other's card
+   and **pins their identity key** — no server, no directory. The ~1.5 KB Kyber
+   (post-quantum) prekey is not in the QR; it is fetched over Tor from the
+   peer's onion at first contact and checked against the pinned identity key.
+   The name in a card is chosen by its owner, so you confirm or edit it.
 4. **Sending:** the first message you send runs X3DH + PQXDH against the stored
    card to open a Double Ratchet session, encrypts, and dials the peer's onion
    over Tor's SOCKS proxy. The ciphertext is stored and marked pending until
    delivered; if the peer is offline it stays queued and retries.
 5. **Receiving:** the peer server reads the envelope, picks the session by the
-   sender's identity key, decrypts, and stores the plaintext in the SQLCipher DB.
+   sender's identity key (which must match the key pinned at pairing), decrypts, and stores the plaintext in the SQLCipher DB.
 6. **Verify:** tap a conversation's title to see the pair's safety number and
    compare it out of band — that rules out a machine-in-the-middle.
 7. **Backup:** Settings exports your identity + contacts as a passphrase-
-   encrypted file you can restore on another device.
+   encrypted file you can restore on another device. Ratchet sessions and the
+   onion key are deliberately left out: after a restore, sessions restart on
+   the next message and the device gets a new onion address (re-share your code).
 
 ## Roadmap
 
@@ -118,11 +124,17 @@ collect them.
 
 - In **Settings**, enable *"Run this device as a mailbox"* on a spare/always-on
   device and copy its onion address; on your main device, paste that as *your
-  mailbox address*. Your contact card then advertises it.
+  mailbox address*. Your contact card then advertises it. **Pair the mailbox
+  device with you** (scan each other's codes): a mailbox only accepts mail for
+  its own contacts, so strangers can't fill it up.
 - When a sender can't reach you directly, they **deposit** the (still-encrypted)
   message at your mailbox. Your device **collects** it when it next comes online,
-  proving ownership of your identity by signing the mailbox's challenge — so only
-  you can retrieve your mail.
+  proving ownership of your identity by signing the mailbox's challenge, bound
+  to that mailbox's onion address (auth v2), so only you can retrieve your mail
+  and one mailbox can't replay your proof at another. Mailbox auth v2 is not
+  compatible with older builds: update the mailbox and its users together.
+- A mailbox holds at most 500 messages per recipient, 20,000 / 64 MiB in total,
+  and drops mail nobody collected within 14 days.
 - The mailbox only ever sees ciphertext and routing metadata (who has mail
   waiting), never message contents. Running your own on a device you control
   keeps even that metadata off third parties.
@@ -134,7 +146,8 @@ Every push to `main` publishes a ready-to-sideload build here:
 **→ https://github.com/legendarymsr/Legendmesage/releases/latest** (grab
 `legendmessage.apk`).
 
-It's an arm64 debug build signed with the repo's throwaway key, so each new
+It's an arm64 debug build signed with the maintainer's release key (held in CI
+secrets, not in the repo), so each new
 version installs over the previous one without uninstalling. Enable "install
 unknown apps" for your browser/file manager, open the APK, and install.
 
@@ -142,6 +155,15 @@ unknown apps" for your browser/file manager, open the APK, and install.
 
 CI builds the APK on every push (see `.github/workflows/build.yml`), uploads it
 as the `legendmessage-apk` artifact, and attaches it to the `latest` release.
+
+### Signing
+
+Builds are signed from environment variables, never from a file in the repo:
+`LM_KEYSTORE_FILE`, `LM_KEYSTORE_PASSWORD`, `LM_KEY_ALIAS`, `LM_KEY_PASSWORD`.
+CI decodes the `LM_KEYSTORE_B64` repository secret into `LM_KEYSTORE_FILE`.
+Without them, debug builds use your local Android debug key and release builds
+are unsigned. (An older keystore was once committed to this repo; it is public
+and must never be trusted.)
 
 Locally you need a JDK 17 and the Android SDK (platform 34, build-tools 34.0.0).
 This repo does not commit the Gradle wrapper yet; generate it once, then build:
