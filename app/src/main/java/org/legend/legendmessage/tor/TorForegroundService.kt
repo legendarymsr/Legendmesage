@@ -313,6 +313,7 @@ class TorForegroundService : Service() {
 
         /** Re-publish our onion so a changed set of client-auth contacts takes effect. */
         fun republish(context: Context) {
+            if (TorState.status != TorState.Status.ON) return // picked up on next start
             val intent = Intent(context, TorForegroundService::class.java).setAction(ACTION_REPUBLISH)
             runCatching { context.startService(intent) }
         }
