@@ -19,6 +19,17 @@ import net.freehaven.tor.control.TorControlConnection
 object TorClientAuth {
     private const val TAG = "TorClientAuth"
 
+    private val BASE32_X25519 = Regex("^[A-Z2-7]{52}$")
+    private val SERVICE_ID = Regex("^[a-z2-7]{56}$")
+    private val BASE64_X25519 = Regex("^[A-Za-z0-9+/]{43}=$")
+    private val KEY_BLOB = Regex("^(NEW:BEST|ED25519-V3:[A-Za-z0-9+/]+={0,2})$")
+
+    /** A v3 onion service id (no ".onion"), lowercase base32, 56 chars. */
+    fun isServiceId(id: String) = SERVICE_ID.matches(id)
+
+    /** A full v3 onion address ("<56 chars>.onion"). */
+    fun isOnionAddress(addr: String) = addr.endsWith(".onion") && isServiceId(addr.removeSuffix(".onion"))
+
     data class OnionResult(val serviceId: String, val privateKey: String?)
 
     /**
@@ -33,6 +44,13 @@ object TorClientAuth {
         authorizedPubsBase32: List<String>,
     ): OnionResult? {
         if (authorizedPubsBase32.isEmpty()) return null
+        // Everything below goes into a raw control-port command: validate so a
+        // malformed contact card can't inject extra arguments or a CRLF.
+        if (!KEY_BLOB.matches(keyBlob)) return null
+        if (authorizedPubsBase32.any { !BASE32_X25519.matches(it) }) {
+            Log.w(TAG, "refusing malformed client-auth public key")
+            return null
+        }
         val sb = StringBuilder("ADD_ONION ").append(keyBlob)
         sb.append(" Port=").append(virtualPort).append(",127.0.0.1:").append(localPort)
         for (pub in authorizedPubsBase32) sb.append(" ClientAuthV3=").append(pub)
@@ -47,19 +65,24 @@ object TorClientAuth {
                     msg.startsWith("PrivateKey=") -> privKey = msg.removePrefix("PrivateKey=").trim()
                 }
             }
-            serviceId?.let { OnionResult(it, privKey) }
-        }.onFailure { Log.w(TAG, "client-auth ADD_ONION failed: ${it.message}") }.getOrNull()
+            serviceId?.takeIf { isServiceId(it) }?.let { OnionResult(it, privKey) }
+        }.onFailure { Log.w(TAG, "client-auth ADD_ONION failed (${it.javaClass.simpleName})") }.getOrNull()
     }
 
     /** Register our private key so we can connect to a peer's authorized onion. */
     fun registerClientKey(
         control: TorControlConnection,
         peerServiceId: String,
-        privateKeyBase32: String,
-    ): Boolean = runCatching {
-        control.onionClientAuthAdd(peerServiceId, privateKeyBase32)
-        true
-    }.onFailure { Log.w(TAG, "ONION_CLIENT_AUTH_ADD failed: ${it.message}") }.getOrDefault(false)
+        privateKeyBase64: String,
+    ): Boolean {
+        if (!isServiceId(peerServiceId) || !BASE64_X25519.matches(privateKeyBase64)) return false
+        // jtorctl throws TorControlError on any 4xx/5xx reply, so returning
+        // normally means Tor accepted it (250/251/252).
+        return runCatching {
+            control.onionClientAuthAdd(peerServiceId, privateKeyBase64)
+            true
+        }.onFailure { Log.w(TAG, "ONION_CLIENT_AUTH_ADD failed (${it.javaClass.simpleName})") }.getOrDefault(false)
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun sendRaw(control: TorControlConnection, command: String): List<Any> {
@@ -69,7 +92,9 @@ object TorClientAuth {
             String::class.java,
         )
         method.isAccessible = true
-        // The method expects the command WITHOUT the trailing CRLF (it adds it).
+        // The method writes the string verbatim, so the command must carry its
+        // own trailing CRLF (jtorctl's own callers append it the same way).
+        // NOTE: reflection on a protected jtorctl method; see proguard-rules.pro.
         return method.invoke(control, command + "\r\n", null) as List<Any>
     }
 

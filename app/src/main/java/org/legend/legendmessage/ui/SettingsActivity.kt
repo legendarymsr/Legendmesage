@@ -61,6 +61,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.torClientAuthCheck.isChecked = identity.torClientAuth
         binding.torClientAuthCheck.setOnCheckedChangeListener { _, checked ->
             identity.torClientAuth = checked
+            org.legend.legendmessage.tor.TorForegroundService.republish(this)
             if (checked) {
                 AlertDialog.Builder(this)
                     .setTitle(R.string.settings_tor_auth_label)

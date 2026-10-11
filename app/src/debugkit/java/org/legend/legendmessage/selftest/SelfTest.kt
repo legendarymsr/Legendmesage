@@ -215,7 +215,7 @@ class SelfTest(private val context: Context) {
             val ca = ClientAuthKeys(caStore)
             val caPub = ca.publicKeyRaw()
             check("Client-auth public key is 32 bytes", caPub.size == 32)
-            check("Client-auth private key is stable", ca.privateKeyBase32() == ClientAuthKeys(caStore).privateKeyBase32())
+            check("Client-auth private key is stable", ca.privateKeyBase64() == ClientAuthKeys(caStore).privateKeyBase64())
 
             // A card carrying a client-auth key survives both encodings…
             val baseCard = alice.crypto.myCard("alice.onion", caPub)

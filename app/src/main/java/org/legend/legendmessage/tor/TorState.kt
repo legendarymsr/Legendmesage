@@ -36,6 +36,21 @@ object TorState {
     var socksPort: Int = 0
         private set
 
+    /**
+     * Client-auth status: true when the user enabled Tor client authorization
+     * but our onion is currently published WITHOUT it (e.g. no contact has a
+     * client-auth key yet, or Tor rejected the request). The UI should show
+     * this; it is never silent.
+     */
+    @Volatile
+    var clientAuthDegraded: Boolean = false
+        private set
+
+    fun setClientAuthDegraded(value: Boolean) {
+        clientAuthDegraded = value
+        main.post { listeners.forEach { it() } }
+    }
+
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     private val main = Handler(Looper.getMainLooper())
 

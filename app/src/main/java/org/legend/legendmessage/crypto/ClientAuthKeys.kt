@@ -36,8 +36,16 @@ class ClientAuthKeys(private val store: SecretStore) {
         return if (serialized.size == 33) serialized.copyOfRange(1, 33) else serialized
     }
 
-    /** Our private key, base32-encoded (jtorctl prepends the "x25519:" itself). */
-    fun privateKeyBase32(): String = Base32.encode(ensure().first.serialize())
+    /**
+     * Our private key for ONION_CLIENT_AUTH_ADD. Tor's control spec requires
+     * the x25519 private key there as **base64** (jtorctl prepends "x25519:").
+     * Base32 is only for the ADD_ONION ClientAuthV3 public keys.
+     */
+    fun privateKeyBase64(): String {
+        val raw = ensure().first.serialize()
+        require(raw.size == 32) { "unexpected x25519 private key length ${raw.size}" }
+        return android.util.Base64.encodeToString(raw, android.util.Base64.NO_WRAP)
+    }
 
     /** Base32 of a peer's raw 32-byte public key, for the ClientAuthV3 argument. */
     fun peerPubToBase32(raw32: ByteArray): String = Base32.encode(raw32)

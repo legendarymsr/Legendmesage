@@ -46,6 +46,9 @@
     <string name="tor_notif_starting">Connecting to the Tor network…</string>
     <string name="tor_notif_on">Online over Tor</string>
     <string name="tor_notif_error">Tor error: %1$s</string>
+    <string name="tor_status_no_client_auth">⚠ Client authorization is on but NOT active: your onion is reachable without it.</string>
+    <string name="tor_notif_error_generic">Tor error. Open the app for details.</string>
+    <string name="tor_notif_on_no_client_auth">Online over Tor. Client authorization is NOT active</string>
     <string name="tor_status_off">Tor: off</string>
     <string name="tor_status_starting">Tor: connecting…</string>
     <string name="tor_status_on">Tor: online · %1$s</string>

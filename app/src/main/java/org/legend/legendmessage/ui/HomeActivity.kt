@@ -148,7 +148,8 @@ class HomeActivity : AppCompatActivity() {
         binding.torStatus.text = when (TorState.status) {
             TorState.Status.OFF -> getString(R.string.tor_status_off)
             TorState.Status.STARTING -> getString(R.string.tor_status_starting)
-            TorState.Status.ON -> getString(R.string.tor_status_on, TorState.onionAddress.take(16) + "…")
+            TorState.Status.ON -> getString(R.string.tor_status_on, TorState.onionAddress.take(16) + "…") +
+                if (TorState.clientAuthDegraded) "\n" + getString(R.string.tor_status_no_client_auth) else ""
             TorState.Status.ERROR -> getString(R.string.tor_status_error)
         }
     }
@@ -196,6 +197,8 @@ class HomeActivity : AppCompatActivity() {
         try {
             val contact = App.services().crypto.addContact(card)
             refresh()
+            // A new client-auth contact must be added to our onion's authorized set.
+            if (App.services().identity.torClientAuth) TorForegroundService.republish(this)
             // Fetch their Kyber prekey over Tor now (it isn't in the QR), so the
             // first message sends without waiting.
             App.services().sender.healContacts()

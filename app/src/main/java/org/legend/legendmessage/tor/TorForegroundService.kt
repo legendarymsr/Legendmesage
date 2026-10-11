@@ -44,7 +44,12 @@ class TorForegroundService : Service() {
     private val io = Executors.newSingleThreadExecutor()
     private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
     @Volatile private var polling = false
-    private var torService: TorService? = null
+    @Volatile private var torService: TorService? = null
+
+    // Onion we published on the current Tor run (null after Tor goes OFF), so
+    // a repeated STATUS_ON doesn't ADD_ONION again and hit a collision.
+    @Volatile private var publishedServiceId: String? = null
+    private var controlRetries = 0
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -71,7 +76,10 @@ class TorForegroundService : Service() {
             when (intent?.getStringExtra(TorService.EXTRA_STATUS)) {
                 TorService.STATUS_ON -> io.execute { onTorOn() }
                 TorService.STATUS_STARTING -> TorState.update(status = TorState.Status.STARTING)
-                TorService.STATUS_OFF -> TorState.update(status = TorState.Status.OFF)
+                TorService.STATUS_OFF -> {
+                    publishedServiceId = null // ephemeral onion dies with Tor
+                    TorState.update(status = TorState.Status.OFF)
+                }
             }
         }
     }
@@ -103,7 +111,23 @@ class TorForegroundService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_REPUBLISH) io.execute { republish() }
+        return START_STICKY
+    }
+
+    /**
+     * Ephemeral onions can't gain new ClientAuthV3 clients in place, so when
+     * the authorized set changes (a contact added/removed) we DEL_ONION and
+     * publish again with the same key; the address stays the same.
+     */
+    private fun republish() {
+        val control = torService?.torControlConnection ?: return
+        val current = publishedServiceId ?: return
+        runCatching { control.delOnion(current) }
+        publishedServiceId = null
+        onTorOn()
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -122,56 +146,65 @@ class TorForegroundService : Service() {
     private fun onTorOn() {
         val control = torService?.torControlConnection
         if (control == null) {
-            // Control connection not ready at the instant ON arrived; retry shortly.
-            io.execute {
-                Thread.sleep(800)
-                onTorOn()
+            // Control connection not ready at the instant ON arrived; retry a
+            // bounded number of times on the scheduler (not by sleeping on io).
+            if (controlRetries++ < MAX_CONTROL_RETRIES) {
+                scheduler.schedule({ io.execute { onTorOn() } }, 800, TimeUnit.MILLISECONDS)
+            } else {
+                TorState.update(status = TorState.Status.ERROR)
+                updateNotification(getString(R.string.tor_notif_error_generic))
             }
             return
         }
+        controlRetries = 0
         try {
             val services = App.services()
-            val ports: Map<Int, String> =
-                mapOf(TorConfig.VIRTUAL_PORT to "127.0.0.1:${TorConfig.LOCAL_PORT}")
+            val clientAuthWanted = services.identity.torClientAuth
+            var serviceId = publishedServiceId
+            if (serviceId == null) {
+                val ports: Map<Int, String> =
+                    mapOf(TorConfig.VIRTUAL_PORT to "127.0.0.1:${TorConfig.LOCAL_PORT}")
 
-            val stored = services.secretStore.get("onion_key")?.let { String(it, Charsets.UTF_8) }
-            val keyBlob = stored ?: "NEW:BEST"
+                val stored = services.secretStore.get("onion_key")?.let { String(it, Charsets.UTF_8) }
+                val keyBlob = stored ?: "NEW:BEST"
 
-            // Experimental: restrict the onion to authorized client keys. Only
-            // possible when at least one contact has shared a client-auth key;
-            // any failure falls back to a normal (unauthenticated) onion so the
-            // transport never ends up dead.
-            var serviceId: String?
-            var privKey: String?
-            val authorizedPubs = if (services.identity.torClientAuth) authorizedClientPubs() else emptyList()
-            if (authorizedPubs.isNotEmpty()) {
-                val authed = TorClientAuth.addOnionWithClientAuth(
-                    control, keyBlob, TorConfig.VIRTUAL_PORT, TorConfig.LOCAL_PORT, authorizedPubs,
-                )
+                var privKey: String?
+                var authActive = false
+                val authorizedPubs = if (clientAuthWanted) authorizedClientPubs() else emptyList()
+                val authed = if (authorizedPubs.isNotEmpty()) {
+                    TorClientAuth.addOnionWithClientAuth(
+                        control, keyBlob, TorConfig.VIRTUAL_PORT, TorConfig.LOCAL_PORT, authorizedPubs,
+                    )
+                } else {
+                    null
+                }
                 if (authed != null) {
                     serviceId = authed.serviceId
                     privKey = authed.privateKey
+                    authActive = true
                 } else {
+                    // Normal onion. If the user asked for client auth this is a
+                    // degraded state, surfaced below (never silent).
                     val result = control.addOnion(keyBlob, ports)
                     serviceId = result[TorControlCommands.HS_ADDRESS]
                     privKey = result[TorControlCommands.HS_PRIVKEY]
                 }
-            } else {
-                val result = control.addOnion(keyBlob, ports)
-                serviceId = result[TorControlCommands.HS_ADDRESS]
-                privKey = result[TorControlCommands.HS_PRIVKEY]
+                if (stored == null && privKey != null) {
+                    services.secretStore.put("onion_key", privKey.toByteArray(Charsets.UTF_8))
+                }
+                publishedServiceId = serviceId
+                TorState.setClientAuthDegraded(clientAuthWanted && !authActive)
             }
-            if (stored == null && privKey != null) {
-                services.secretStore.put("onion_key", privKey.toByteArray(Charsets.UTF_8))
-            }
-            if (services.identity.torClientAuth) registerPeerClientKeys(control)
+            if (clientAuthWanted) registerPeerClientKeys(control)
 
             val socks = torService?.socksPort ?: TorService.socksPort
             if (serviceId != null) {
                 val onion = "$serviceId.onion"
                 services.identity.onionAddress = onion
                 TorState.update(status = TorState.Status.ON, onionAddress = onion, socksPort = socks)
-                updateNotification(getString(R.string.tor_notif_on))
+                updateNotification(
+                    getString(if (TorState.clientAuthDegraded) R.string.tor_notif_on_no_client_auth else R.string.tor_notif_on),
+                )
 
                 // Online: accept inbound streams, open the long-lived mailbox
                 // subscription, and flush the outbox. A low-frequency fallback
@@ -192,7 +225,8 @@ class TorForegroundService : Service() {
             }
         } catch (e: Exception) {
             TorState.update(status = TorState.Status.ERROR)
-            updateNotification(getString(R.string.tor_notif_error, e.message ?: ""))
+            // Generic text: the notification can show on the lock screen.
+            updateNotification(getString(R.string.tor_notif_error_generic))
         }
     }
 
@@ -201,7 +235,7 @@ class TorForegroundService : Service() {
         val services = App.services()
         return services.contacts.all().mapNotNull { c ->
             val pub = services.crypto.peerCard(c.identityHex)?.clientAuthPub
-            if (pub != null && pub.isNotEmpty()) services.clientAuth.peerPubToBase32(pub) else null
+            if (pub != null && pub.size == 32) services.clientAuth.peerPubToBase32(pub) else null
         }
     }
 
@@ -212,11 +246,12 @@ class TorForegroundService : Service() {
      */
     private fun registerPeerClientKeys(control: TorControlConnection) {
         val services = App.services()
-        val privBase32 = runCatching { services.clientAuth.privateKeyBase32() }.getOrNull() ?: return
+        val privB64 = runCatching { services.clientAuth.privateKeyBase64() }.getOrNull() ?: return
         services.contacts.all().forEach { c ->
             val card = services.crypto.peerCard(c.identityHex) ?: return@forEach
-            if (card.clientAuthPub.isEmpty() || card.onionAddress.isBlank()) return@forEach
-            TorClientAuth.registerClientKey(control, card.onionAddress.removeSuffix(".onion"), privBase32)
+            if (card.clientAuthPub.isEmpty() || !TorClientAuth.isOnionAddress(card.onionAddress)) return@forEach
+            val ok = TorClientAuth.registerClientKey(control, card.onionAddress.removeSuffix(".onion"), privB64)
+            if (!ok) TorState.setClientAuthDegraded(true)
         }
     }
 
@@ -273,6 +308,14 @@ class TorForegroundService : Service() {
         // The mailbox stream delivers promptly; this is just a safety-net retry
         // for the outbox and to heal a dead subscription, so it can be rare.
         private const val FALLBACK_SECONDS = 600L
+        private const val MAX_CONTROL_RETRIES = 15
+        private const val ACTION_REPUBLISH = "org.legend.legendmessage.tor.REPUBLISH"
+
+        /** Re-publish our onion so a changed set of client-auth contacts takes effect. */
+        fun republish(context: Context) {
+            val intent = Intent(context, TorForegroundService::class.java).setAction(ACTION_REPUBLISH)
+            runCatching { context.startService(intent) }
+        }
 
         fun start(context: Context) {
             val intent = Intent(context, TorForegroundService::class.java)
