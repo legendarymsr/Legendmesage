@@ -22,3 +22,7 @@ local.properties
 keystore.properties
 # ...except the intentional throwaway sideload key (no trust; see build.gradle.kts).
 !keystore/legendmessage.jks
+
+# Signing keys never belong in the repo
+*.jks
+*.keystore

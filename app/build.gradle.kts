@@ -43,25 +43,30 @@ android {
         }
     }
 
+    // Release signing comes from the environment (CI secrets), never the repo.
+    // LM_KEYSTORE_FILE points at a decoded keystore (CI writes it from the
+    // LM_KEYSTORE_B64 secret). If unset, debug builds use the local Android
+    // debug key and release builds are left unsigned, so builds never break.
+    val lmKeystore = System.getenv("LM_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }?.let { file(it) }
+        ?.takeIf { it.exists() }
     signingConfigs {
-        // A throwaway key committed to the repo so sideloaded builds from here
-        // are signed consistently and update over each other. It carries NO
-        // trust — do not treat a signature by this key as proof of anything.
-        create("shared") {
-            storeFile = rootProject.file("keystore/legendmessage.jks")
-            storePassword = "legendmessage"
-            keyAlias = "legendmessage"
-            keyPassword = "legendmessage"
+        if (lmKeystore != null) {
+            create("shared") {
+                storeFile = lmKeystore
+                storePassword = System.getenv("LM_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("LM_KEY_ALIAS")
+                keyPassword = System.getenv("LM_KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("shared")
+            if (lmKeystore != null) signingConfig = signingConfigs.getByName("shared")
         }
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("shared")
+            if (lmKeystore != null) signingConfig = signingConfigs.getByName("shared")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

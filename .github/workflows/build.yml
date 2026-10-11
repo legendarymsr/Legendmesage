@@ -39,7 +39,25 @@ jobs:
         id: ver
         run: echo "name=0.1.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
+      # Signing key comes from repository secrets. Without them the build still
+      # succeeds, signed with the runner's throwaway debug key.
+      - name: Decode signing key
+        if: github.event_name != 'pull_request'
+        env:
+          LM_KEYSTORE_B64: ${{ secrets.LM_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$LM_KEYSTORE_B64" ]; then
+            echo "$LM_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/lm.jks"
+            echo "LM_KEYSTORE_FILE=$RUNNER_TEMP/lm.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::LM_KEYSTORE_B64 not set; APKs are signed with a throwaway debug key"
+          fi
+
       - name: Build debug APK
+        env:
+          LM_KEYSTORE_PASSWORD: ${{ secrets.LM_KEYSTORE_PASSWORD }}
+          LM_KEY_ALIAS: ${{ secrets.LM_KEY_ALIAS }}
+          LM_KEY_PASSWORD: ${{ secrets.LM_KEY_PASSWORD }}
         run: >
           gradle assembleDebug --no-daemon --stacktrace
           -PappVersionCode=${{ github.run_number }}
