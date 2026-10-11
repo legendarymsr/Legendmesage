@@ -19,9 +19,11 @@ import org.signal.libsignal.protocol.state.SignedPreKeyRecord
  * X3DH/PQXDH and the Double Ratchet through this interface; we just give it
  * durable, encrypted storage.
  *
- * Identity trust is trust-on-first-use: the first identity key we see for a
- * peer is pinned, and a later mismatch is treated as untrusted (a key change
- * the user must re-verify).
+ * Identity trust is pinned at pairing: the identity key from the scanned
+ * contact card is saved when the contact is added (see
+ * [CryptoEngine.addContact]). An address with no pinned key is NOT trusted,
+ * so a stranger cannot claim to be a paired contact by sending the first
+ * PreKey message with their own identity key.
  */
 class SignalStore(
     private val store: SecretStore,
@@ -60,7 +62,8 @@ class SignalStore(
         identityKey: IdentityKey,
         direction: IdentityKeyStore.Direction,
     ): Boolean {
-        val existing = store.get("ident_${address.name}") ?: return true // TOFU
+        // Unpinned = untrusted. Keys are pinned from the contact card at pairing.
+        val existing = store.get("ident_${address.name}") ?: return false
         return existing.contentEquals(identityKey.serialize())
     }
 

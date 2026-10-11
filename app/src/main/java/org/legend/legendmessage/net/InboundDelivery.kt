@@ -28,6 +28,9 @@ class InboundDelivery(
             messages.insertIncoming(senderHex, String(plaintext, Charsets.UTF_8))
             MessageBus.notifyChanged(senderHex)
             true
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SECURITY: PreKey identity mismatch — message rejected")
+            false
         } catch (e: UntrustedIdentityException) {
             // The sender's claimed identity key does not match the one pinned
             // for this contact: a possible machine-in-the-middle. Drop it loudly

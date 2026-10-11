@@ -139,6 +139,10 @@ class CryptoEngine(
         // Re-pairing with the same identity key (same hex) keeps a prior
         // verification — the safety number is derived from the keys, which are
         // unchanged. A different key is a different hex, hence a new contact.
+        // Pin the card's identity key now, so the first inbound PreKey message
+        // must carry exactly this key (see SignalStore.isTrustedIdentity).
+        store.saveIdentity(SignalProtocolAddress(hex, localDeviceId), IdentityKey(card.identityKey, 0))
+
         val existing = contacts.get(hex)
         val contact = Contact(
             identityHex = hex,
@@ -151,6 +155,21 @@ class CryptoEngine(
         )
         contacts.upsert(contact)
         contact
+    }
+
+    /**
+     * Migration for installs from before identity pinning: any contact without
+     * a pinned identity key gets pinned from its stored pairing card (whose
+     * identity key is, by construction, the contact's id). Idempotent.
+     */
+    fun pinStoredContacts() = synchronized(ratchetLock) {
+        contacts.all().forEach { c ->
+            val address = SignalProtocolAddress(c.identityHex, localDeviceId)
+            if (store.getIdentity(address) != null) return@forEach
+            val card = peerCard(c.identityHex) ?: return@forEach
+            if (hexOf(card.identityKey) != c.identityHex) return@forEach
+            runCatching { store.saveIdentity(address, IdentityKey(card.identityKey, 0)) }
+        }
     }
 
     fun hasSession(identityHex: String): Boolean =
@@ -199,8 +218,15 @@ class CryptoEngine(
             val address = SignalProtocolAddress(identityHex, localDeviceId)
             val cipher = SessionCipher(store, address)
             when (type) {
-                CiphertextMessage.PREKEY_TYPE ->
-                    cipher.decrypt(PreKeySignalMessage(body), UsePqRatchet.YES)
+                CiphertextMessage.PREKEY_TYPE -> {
+                    val msg = PreKeySignalMessage(body)
+                    // The identity inside the PreKey message must be the one the
+                    // envelope claims (and that we pinned for this contact).
+                    if (!msg.identityKey.serialize().contentEquals(bytesOfHex(identityHex))) {
+                        throw SecurityException("PreKey identity does not match claimed sender")
+                    }
+                    cipher.decrypt(msg, UsePqRatchet.YES)
+                }
                 else -> cipher.decrypt(SignalMessage(body))
             }
         }

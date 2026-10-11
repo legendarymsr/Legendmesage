@@ -27,7 +27,7 @@ class ServiceLocator(context: Context) {
     val identity: IdentityManager by lazy { IdentityManager(appContext, secretStore) }
     val contacts: ContactStore by lazy { ContactStore(secretStore) }
     val signalStore: SignalStore by lazy { SignalStore(secretStore, identity) }
-    val crypto: CryptoEngine by lazy { CryptoEngine(identity, signalStore, contacts) }
+    val crypto: CryptoEngine by lazy { CryptoEngine(identity, signalStore, contacts).also { runCatching { it.pinStoredContacts() } } }
     val backup: BackupManager by lazy { BackupManager(secretStore, identity) }
     val lock: LockManager by lazy { LockManager(secretStore) }
     val clientAuth: ClientAuthKeys by lazy { ClientAuthKeys(secretStore) }
