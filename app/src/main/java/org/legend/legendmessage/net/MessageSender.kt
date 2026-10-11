@@ -1,6 +1,6 @@
 package org.legend.legendmessage.net
 
-import android.util.Log
+import org.legend.legendmessage.app.Log
 import org.legend.legendmessage.crypto.CryptoEngine
 import org.legend.legendmessage.data.ContactStore
 import org.legend.legendmessage.data.MessageStore

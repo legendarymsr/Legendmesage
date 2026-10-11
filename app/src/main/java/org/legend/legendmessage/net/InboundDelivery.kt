@@ -1,6 +1,6 @@
 package org.legend.legendmessage.net
 
-import android.util.Log
+import org.legend.legendmessage.app.Log
 import org.legend.legendmessage.crypto.CryptoEngine
 import org.legend.legendmessage.data.ContactStore
 import org.legend.legendmessage.data.MessageStore
@@ -20,7 +20,7 @@ class InboundDelivery(
     fun deliver(envelope: Wire.Envelope): Boolean {
         val senderHex = CryptoEngine.hexOf(envelope.senderId)
         if (contacts.get(senderHex) == null) {
-            Log.w(TAG, "dropping message from unknown sender $senderHex")
+            Log.w(TAG, "dropping message from unknown sender ${Log.short(senderHex)}")
             return false
         }
         return try {
@@ -35,10 +35,10 @@ class InboundDelivery(
             // The sender's claimed identity key does not match the one pinned
             // for this contact: a possible machine-in-the-middle. Drop it loudly
             // rather than silently accepting a changed key.
-            Log.e(TAG, "SECURITY: identity key mismatch for $senderHex — message rejected", e)
+            Log.e(TAG, "SECURITY: identity key mismatch for ${Log.short(senderHex)} — message rejected")
             false
         } catch (e: Exception) {
-            Log.w(TAG, "failed to decrypt/store from $senderHex: ${e.message}")
+            Log.w(TAG, "failed to decrypt/store from ${Log.short(senderHex)}: ${e.message}")
             false
         }
     }

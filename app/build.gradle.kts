@@ -33,6 +33,8 @@ android {
             dimension = "mode"
             // Block screenshots/recording and hide content in recents.
             buildConfigField("boolean", "SECURE_WINDOWS", "true")
+            // No diagnostic logcat output or crash files in the messenger.
+            buildConfigField("boolean", "VERBOSE_DIAGNOSTICS", "false")
         }
         create("debugkit") {
             dimension = "mode"
@@ -40,6 +42,7 @@ android {
             versionNameSuffix = "-debug"
             // Keep the debug app screenshot-able so self-test output can be shared.
             buildConfigField("boolean", "SECURE_WINDOWS", "false")
+            buildConfigField("boolean", "VERBOSE_DIAGNOSTICS", "true")
         }
     }
 

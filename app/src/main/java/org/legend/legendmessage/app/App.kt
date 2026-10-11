@@ -109,7 +109,9 @@ class App : Application() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val trace = StringWriter().also { throwable.printStackTrace(PrintWriter(it)) }.toString()
             val text = "LegendMessage crashed in thread \"${thread.name}\":\n\n$trace"
-            runCatching { File(filesDir, "last_crash.txt").writeText(text) }
+            // Persist the trace only in the debugkit app; in the messenger it
+            // could hold message text or keys and would sit outside the Keystore.
+            if (BuildConfig.VERBOSE_DIAGNOSTICS) runCatching { File(filesDir, "last_crash.txt").writeText(text) }
             runCatching {
                 startActivity(
                     Intent(this, CrashActivity::class.java)

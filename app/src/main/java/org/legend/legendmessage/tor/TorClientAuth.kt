@@ -1,6 +1,6 @@
 package org.legend.legendmessage.tor
 
-import android.util.Log
+import org.legend.legendmessage.app.Log
 import net.freehaven.tor.control.TorControlConnection
 
 /**
