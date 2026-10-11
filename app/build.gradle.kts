@@ -126,4 +126,6 @@ dependencies {
     // Encrypted message history at rest.
     implementation("net.zetetic:sqlcipher-android:4.9.0")
     implementation("androidx.sqlite:sqlite:2.4.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
