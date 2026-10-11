@@ -27,14 +27,14 @@ class BackupManager(
         val secrets = JSONObject()
         for (name in secretStore.allKeys()) {
             // The app lock is device-local; don't carry it into a restore.
-            if (name.startsWith(LockManager.KEY_PREFIX)) continue
+            if (!includeInBackup(name)) continue
             val value = secretStore.get(name) ?: continue
             secrets.put(name, Base64.encodeToString(value, Base64.NO_WRAP))
         }
         val prefs = JSONObject()
             .put("reg", identity.registrationId)
             .put("name", identity.displayName)
-            .put("onion", identity.onionAddress)
+            .put("onion", "") // onion key isn't backed up, so neither is the address
         val payload = JSONObject()
             .put("v", 1)
             .put("secrets", secrets)
@@ -64,7 +64,11 @@ class BackupManager(
         val buffer = ByteBuffer.wrap(blob)
         val magic = ByteArray(MAGIC2.size).also { buffer.get(it) }
         val iterations = when {
-            magic.contentEquals(MAGIC2) -> buffer.getInt()
+            magic.contentEquals(MAGIC2) -> buffer.getInt().also {
+                // The count comes from the file: bound it so a crafted backup
+                // can't hang the app (or downgrade to a trivially weak KDF).
+                require(it in MIN_ITERATIONS..MAX_ITERATIONS) { "unsupported backup parameters" }
+            }
             magic.contentEquals(MAGIC1) -> LEGACY_ITERATIONS // older fixed-count backup
             else -> throw IllegalArgumentException("not a LegendMessage backup")
         }
@@ -79,11 +83,27 @@ class BackupManager(
 
         val secrets = json.getJSONObject("secrets")
         for (name in secrets.keys()) {
+            // Older backups carried ratchet sessions and the onion key; skip them.
+            if (!includeInBackup(name)) continue
             secretStore.put(name, Base64.decode(secrets.getString(name), Base64.NO_WRAP))
         }
         val prefs = json.getJSONObject("prefs")
         identity.importPrefs(prefs.getInt("reg"), prefs.getString("name"), prefs.getString("onion"))
     }
+
+    /**
+     * What goes into a backup. Excluded:
+     *  - the app lock (device-local),
+     *  - Double Ratchet sessions: restoring old ratchet state rolls the
+     *    session back (reused keys / desync). Sessions are rebuilt from the
+     *    stored cards after a restore (the next send starts a new PreKey session),
+     *  - the onion key: two devices restored from one backup would fight over
+     *    one onion address. A restored device gets a new address.
+     */
+    private fun includeInBackup(name: String): Boolean =
+        !name.startsWith(LockManager.KEY_PREFIX) &&
+            !name.startsWith("sess_") &&
+            name != "onion_key"
 
     private fun deriveKey(passphrase: CharArray, salt: ByteArray, iterations: Int): SecretKeySpec {
         // PBKDF2-HMAC-SHA256. A real Argon2id KDF would resist GPU cracking
@@ -103,6 +123,8 @@ class BackupManager(
         // 600k PBKDF2 iterations (OWASP 2023 floor), up from the original 120k.
         private const val ITERATIONS = 600_000
         private const val LEGACY_ITERATIONS = 120_000
+        private const val MIN_ITERATIONS = 100_000
+        private const val MAX_ITERATIONS = 10_000_000
         private val MAGIC1 = "LMBK1".toByteArray(Charsets.US_ASCII)
         private val MAGIC2 = "LMBK2".toByteArray(Charsets.US_ASCII)
     }
