@@ -64,12 +64,15 @@ class MailboxPoller(
             val out = Wire.output(it.getOutputStream())
             val input = Wire.input(it.getInputStream())
 
-            out.writeByte(Wire.OP_SUBSCRIBE)
-            Wire.writeFrame(out, identity.identityKey().serialize())
+            val myId = identity.identityKey().serialize()
+            out.writeByte(Wire.OP_SUBSCRIBE_V2)
+            Wire.writeFrame(out, myId)
             out.flush()
 
-            val challenge = Wire.readFrame(input)
-            Wire.writeFrame(out, identity.identityKeyPair().privateKey.calculateSignature(challenge))
+            val challenge = Wire.readFrame(input, Wire.CHALLENGE_LEN)
+            require(challenge.size == Wire.CHALLENGE_LEN) { "bad challenge" }
+            val authMsg = Wire.mailboxAuthMessage(Wire.OP_SUBSCRIBE_V2, mailbox, myId, challenge)
+            Wire.writeFrame(out, identity.identityKeyPair().privateKey.calculateSignature(authMsg))
             out.flush()
 
             // The server keepalives every ~90s; a read that stalls well past that

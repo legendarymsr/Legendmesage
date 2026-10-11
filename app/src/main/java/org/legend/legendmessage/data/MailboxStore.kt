@@ -14,10 +14,14 @@ class MailboxStore(private val db: MessageDb) {
     /** Caps so an open relay can't be flooded off a device.*/
     private val maxPerRecipient = 500
     private val maxTotal = 20_000
+    private val maxTotalBytes = 64L * 1024 * 1024
+    private val maxAgeMs = 14L * 24 * 60 * 60 * 1000
 
     @Synchronized
     fun deposit(recipientHex: String, envelope: Wire.Envelope): Boolean {
+        purgeExpired()
         if (count(recipientHex) >= maxPerRecipient || total() >= maxTotal) return false
+        if (totalBytes() + envelope.body.size + envelope.senderId.size > maxTotalBytes) return false
         val values = ContentValues().apply {
             put("recipient", recipientHex)
             put("sender", envelope.senderId)
@@ -39,6 +43,18 @@ class MailboxStore(private val db: MessageDb) {
     private fun total(): Int {
         db.database.rawQuery("SELECT COUNT(*) FROM mailbox", null as Array<String>?)
             .use { c -> return if (c.moveToFirst()) c.getInt(0) else 0 }
+    }
+
+    private fun totalBytes(): Long {
+        db.database.rawQuery("SELECT COALESCE(SUM(length(body) + length(sender)), 0) FROM mailbox", null as Array<String>?)
+            .use { c -> return if (c.moveToFirst()) c.getLong(0) else 0L }
+    }
+
+    /** Drop held mail older than [maxAgeMs] (the recipient never came back for it). */
+    @Synchronized
+    fun purgeExpired() {
+        val cutoff = System.currentTimeMillis() - maxAgeMs
+        db.database.execSQL("DELETE FROM mailbox WHERE ts < ?", arrayOf(cutoff.toString()))
     }
 
     /** Envelopes held for [recipientHex], WITHOUT deleting (for the streaming path). */

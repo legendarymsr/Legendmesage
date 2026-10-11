@@ -38,6 +38,12 @@ class ServiceLocator(context: Context) {
 
     val inbound: InboundDelivery by lazy { InboundDelivery(contacts, messages, crypto) }
     val sender: MessageSender by lazy { MessageSender(contacts, messages, crypto) }
-    val peerServer: PeerServer by lazy { PeerServer(identity, inbound, mailboxStore) { crypto.myKyberBundle() } }
+    val peerServer: PeerServer by lazy { PeerServer(
+            identity, inbound, mailboxStore,
+            kyberProvider = { crypto.myKyberBundle() },
+            // A mailbox only holds mail for people it is paired with.
+            acceptRecipient = { hex -> contacts.get(hex) != null },
+        )
+    }
     val mailboxPoller: MailboxPoller by lazy { MailboxPoller(identity, inbound) }
 }

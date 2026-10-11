@@ -275,11 +275,13 @@ class SelfTest(private val context: Context) {
     private fun subscribeHandshake(s: Socket, recipientId: ByteArray, signerKey: org.signal.libsignal.protocol.ecc.ECPrivateKey) {
         val out = Wire.output(s.getOutputStream())
         val input = Wire.input(s.getInputStream())
-        out.writeByte(Wire.OP_SUBSCRIBE)
+        out.writeByte(Wire.OP_SUBSCRIBE_V2)
         Wire.writeFrame(out, recipientId)
         out.flush()
         val challenge = Wire.readFrame(input)
-        Wire.writeFrame(out, signerKey.calculateSignature(challenge))
+        // The loopback test server runs with selfOnion = "".
+        Wire.writeFrame(out, signerKey.calculateSignature(
+            Wire.mailboxAuthMessage(Wire.OP_SUBSCRIBE_V2, "", recipientId, challenge)))
         out.flush()
     }
 

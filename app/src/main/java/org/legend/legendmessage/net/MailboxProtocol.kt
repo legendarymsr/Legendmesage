@@ -34,16 +34,20 @@ object MailboxProtocol {
         mailbox: MailboxStore,
         mailboxEnabled: Boolean,
         kyberProvider: () -> KyberBundle? = { null },
+        selfOnion: String = "",
+        acceptRecipient: (String) -> Boolean = { true },
     ) {
         socket.use {
             try {
                 val input = Wire.input(it.getInputStream())
-                when (input.readByte().toInt()) {
+                when (val op = input.readByte().toInt()) {
                     Wire.OP_DIRECT -> inbound.deliver(Wire.readEnvelope(input))
-                    Wire.OP_DEPOSIT -> handleDeposit(input, mailbox, mailboxEnabled)
-                    Wire.OP_COLLECT -> handleCollect(it, input, mailbox, mailboxEnabled)
-                    Wire.OP_SUBSCRIBE -> handleSubscribe(it, input, mailbox, mailboxEnabled)
+                    Wire.OP_DEPOSIT -> handleDeposit(input, mailbox, mailboxEnabled, acceptRecipient)
+                    Wire.OP_COLLECT_V2 -> handleCollect(it, input, mailbox, mailboxEnabled, selfOnion)
+                    Wire.OP_SUBSCRIBE_V2 -> handleSubscribe(it, input, mailbox, mailboxEnabled, selfOnion)
                     Wire.OP_GET_PREKEY -> handleGetPreKey(it, kyberProvider)
+                    // v1 mailbox auth signed a bare challenge (relayable); refused.
+                    Wire.OP_COLLECT, Wire.OP_SUBSCRIBE -> Log.w(TAG, "refusing legacy v1 mailbox auth (op $op)")
                     else -> Log.w(TAG, "unknown opcode")
                 }
             } catch (e: Exception) {
@@ -57,20 +61,34 @@ object MailboxProtocol {
         Wire.writeKyber(Wire.output(socket.getOutputStream()), bundle.id, bundle.key, bundle.signature)
     }
 
-    private fun handleDeposit(input: DataInputStream, mailbox: MailboxStore, enabled: Boolean) {
+    private fun handleDeposit(
+        input: DataInputStream,
+        mailbox: MailboxStore,
+        enabled: Boolean,
+        acceptRecipient: (String) -> Boolean,
+    ) {
         if (!enabled) return
-        val recipientId = Wire.readFrame(input)
-        val envelope = Wire.readEnvelope(input)
+        val recipientId = Wire.readIdentityKey(input)
         val recipientHex = hex(recipientId)
+        // Only hold mail for recipients this mailbox serves (its contacts), so
+        // strangers can't fill it with mail for made-up recipients.
+        if (!acceptRecipient(recipientHex)) return
+        val envelope = Wire.readEnvelope(input)
         if (mailbox.deposit(recipientHex, envelope)) {
             MailboxNotifier.signal(recipientHex) // wake a connected subscriber
         }
     }
 
-    private fun handleSubscribe(socket: Socket, input: DataInputStream, mailbox: MailboxStore, enabled: Boolean) {
+    private fun handleSubscribe(
+        socket: Socket,
+        input: DataInputStream,
+        mailbox: MailboxStore,
+        enabled: Boolean,
+        selfOnion: String,
+    ) {
         if (!enabled) return
-        val recipientId = Wire.readFrame(input)
-        if (!authenticate(socket, input, recipientId)) return
+        val recipientId = Wire.readIdentityKey(input)
+        if (!authenticate(socket, input, recipientId, Wire.OP_SUBSCRIBE_V2, selfOnion)) return
 
         socket.soTimeout = 0 // only write after auth; block on the notifier, not a read
         val output = Wire.output(socket.getOutputStream())
@@ -91,11 +109,17 @@ object MailboxProtocol {
         }
     }
 
-    private fun handleCollect(socket: Socket, input: DataInputStream, mailbox: MailboxStore, enabled: Boolean) {
+    private fun handleCollect(
+        socket: Socket,
+        input: DataInputStream,
+        mailbox: MailboxStore,
+        enabled: Boolean,
+        selfOnion: String,
+    ) {
         if (!enabled) return
-        val recipientId = Wire.readFrame(input)
+        val recipientId = Wire.readIdentityKey(input)
         val output = Wire.output(socket.getOutputStream())
-        if (!authenticate(socket, input, recipientId)) {
+        if (!authenticate(socket, input, recipientId, Wire.OP_COLLECT_V2, selfOnion)) {
             output.writeInt(0)
             output.flush()
             return
@@ -107,18 +131,27 @@ object MailboxProtocol {
     }
 
     /**
-     * Signed-challenge check: send a random challenge; the caller must return a
-     * signature over it that verifies against [recipientId]. Proves ownership of
-     * the recipient identity key without revealing it.
+     * Signed-challenge check (v2): send a random challenge; the caller must
+     * return a signature over [Wire.mailboxAuthMessage] (bound to our onion and
+     * [op]) that verifies against [recipientId].
      */
-    private fun authenticate(socket: Socket, input: DataInputStream, recipientId: ByteArray): Boolean {
+    private fun authenticate(
+        socket: Socket,
+        input: DataInputStream,
+        recipientId: ByteArray,
+        op: Int,
+        selfOnion: String,
+    ): Boolean {
         val output = Wire.output(socket.getOutputStream())
-        val challenge = ByteArray(32).also { random.nextBytes(it) }
+        val challenge = ByteArray(Wire.CHALLENGE_LEN).also { random.nextBytes(it) }
         Wire.writeFrame(output, challenge)
         output.flush()
-        val signature = Wire.readFrame(input)
+        val signature = Wire.readFrame(input, Wire.MAX_SIGNATURE)
         return try {
-            ECPublicKey(recipientId).verifySignature(challenge, signature)
+            ECPublicKey(recipientId).verifySignature(
+                Wire.mailboxAuthMessage(op, selfOnion, recipientId, challenge),
+                signature,
+            )
         } catch (e: Exception) {
             false
         }
