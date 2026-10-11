@@ -63,6 +63,9 @@ jobs:
           -PappVersionCode=${{ github.run_number }}
           -PappVersionName=${{ steps.ver.outputs.name }}
 
+      - name: Unit tests
+        run: gradle testStandardDebugUnitTest --no-daemon
+
       - name: Name the APKs
         run: |
           mkdir -p dist
