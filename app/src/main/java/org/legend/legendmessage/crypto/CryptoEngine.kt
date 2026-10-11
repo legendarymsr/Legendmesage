@@ -108,6 +108,9 @@ class CryptoEngine(
     /** Fill in a peer's fetched Kyber prekey, completing their stored card. */
     fun attachKyber(identityHex: String, bundle: KyberBundle) = synchronized(ratchetLock) {
         val card = peerCard(identityHex) ?: return@synchronized
+        // Shape check only; libsignal verifies the signature against the pinned
+        // identity key when the session is built.
+        if (bundle.key.isEmpty() || bundle.key.size > 4096 || bundle.signature.size != 64) return@synchronized
         val completed = card.copy(
             kyberPreKeyId = bundle.id,
             kyberPreKey = bundle.key,
@@ -132,7 +135,7 @@ class CryptoEngine(
      * two different sessions. Instead the first sender initiates and the other
      * side establishes its session by receiving that first (PreKey) message.
      */
-    fun addContact(card: ContactCard): Contact = synchronized(ratchetLock) {
+    fun addContact(card: ContactCard, localName: String? = null): Contact = synchronized(ratchetLock) {
         val hex = hexOf(card.identityKey)
         store.rawPut("card_$hex", card.encode().toByteArray(Charsets.UTF_8))
 
@@ -146,7 +149,8 @@ class CryptoEngine(
         val existing = contacts.get(hex)
         val contact = Contact(
             identityHex = hex,
-            displayName = card.displayName.ifBlank { "Unknown" },
+            // The card's name is chosen by the peer; the user confirms or edits it.
+            displayName = ContactCard.cleanName(localName ?: card.displayName).ifBlank { "Unknown" },
             onionAddress = card.onionAddress,
             mailboxAddress = card.mailboxAddress,
             registrationId = card.registrationId,

@@ -193,9 +193,25 @@ class HomeActivity : AppCompatActivity() {
         commitContact(card)
     }
 
+    /** The name in a card is chosen by the other person: let the user confirm or change it. */
     private fun commitContact(card: ContactCard) {
+        val input = android.widget.EditText(this).apply {
+            setText(card.displayName)
+            setSingleLine()
+            filters = arrayOf(android.text.InputFilter.LengthFilter(64))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.pair_name_title)
+            .setMessage(R.string.pair_name_body)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ -> saveContact(card, input.text?.toString().orEmpty()) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun saveContact(card: ContactCard, name: String) {
         try {
-            val contact = App.services().crypto.addContact(card)
+            val contact = App.services().crypto.addContact(card, name)
             refresh()
             // A new client-auth contact must be added to our onion's authorized set.
             if (App.services().identity.torClientAuth) TorForegroundService.republish(this)

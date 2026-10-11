@@ -46,7 +46,7 @@ class IdentityManager(
     var mailboxAddress: String
         get() = prefs.getString(PREF_MAILBOX, "") ?: ""
         set(value) {
-            prefs.edit().putString(PREF_MAILBOX, value.trim()).apply()
+            prefs.edit().putString(PREF_MAILBOX, value.trim().lowercase()).apply()
         }
 
     /** Whether this device acts as a mailbox, holding ciphertext for other recipients. */

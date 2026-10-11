@@ -92,11 +92,40 @@ data class ContactCard(
             return parse(CardReader(bytes.copyOfRange(MAGIC.size, bytes.size)))
         }
 
+        private const val MAX_NAME_CHARS = 64
+        private const val MAX_KYBER_KEY = 4096
+        private val ONION_V3 = Regex("^[a-z2-7]{56}\\.onion$")
+
+        private fun isKey33(b: ByteArray) = b.size == 33 && b[0] == 0x05.toByte()
+
+        /** Reject cards whose fields aren't the shapes we expect. */
+        private fun validate(c: ContactCard): ContactCard {
+            require(isKey33(c.identityKey)) { "bad identity key" }
+            require(isKey33(c.signedPreKey)) { "bad signed prekey" }
+            require(c.signedPreKeySignature.size == 64) { "bad signed prekey signature" }
+            require(c.kyberPreKey.size <= MAX_KYBER_KEY) { "bad kyber prekey" }
+            require(c.kyberPreKeySignature.isEmpty() || c.kyberPreKeySignature.size == 64) { "bad kyber signature" }
+            require(c.onionAddress.isEmpty() || ONION_V3.matches(c.onionAddress)) { "bad onion address" }
+            require(c.mailboxAddress.isEmpty() || ONION_V3.matches(c.mailboxAddress)) { "bad mailbox address" }
+            require(c.clientAuthPub.isEmpty() || c.clientAuthPub.size == 32) { "bad client-auth key" }
+            return c
+        }
+
+        /** Strip control/format characters and cap the length of a peer-chosen name. */
+        fun cleanName(name: String): String =
+            name.filter { !Character.isISOControl(it) && Character.getType(it) != Character.FORMAT.toInt() }
+                .trim()
+                .take(MAX_NAME_CHARS)
+
         private fun parse(r: CardReader): ContactCard {
             val version = r.readByte()
             require(version == VERSION) { "unsupported card version $version" }
+            return validate(parseFields(r))
+        }
+
+        private fun parseFields(r: CardReader): ContactCard {
             return ContactCard(
-                displayName = r.readString(),
+                displayName = cleanName(r.readString()),
                 registrationId = r.readInt(),
                 identityKey = r.readBytes(),
                 signedPreKeyId = r.readInt(),
